@@ -11,7 +11,7 @@ namespace Constants
     // Band configuration
     constexpr int kMaxBands = 6;
     constexpr int kMaxCrossovers = 5;
-    constexpr int kDefaultNumBands = 1;
+    constexpr int kDefaultNumBands = 0;
 
     // Frequency range
     constexpr float kMinFrequency = 20.0f;

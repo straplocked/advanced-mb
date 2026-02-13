@@ -36,7 +36,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterLayout::createLayou
         Constants::kDefaultMix));
 
     params.push_back(std::make_unique<juce::AudioParameterInt>(
-        ParameterIDs::Global::numBands, "Num Bands", 1, Constants::kMaxBands, Constants::kDefaultNumBands));
+        ParameterIDs::Global::numBands, "Num Bands", 0, Constants::kMaxBands, Constants::kDefaultNumBands));
 
     params.push_back(std::make_unique<juce::AudioParameterBool>(
         ParameterIDs::Global::midiLearn, "MIDI Learn", false));
