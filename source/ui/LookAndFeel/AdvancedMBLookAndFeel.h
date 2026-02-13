@@ -105,10 +105,21 @@ public:
     }
 
     void drawButtonBackground ( juce::Graphics& g, juce::Button& button,
-                                const juce::Colour&,
+                                const juce::Colour& backgroundColour,
                                 bool isMouseOverButton, bool isButtonDown ) override
     {
         auto bounds = button.getLocalBounds().toFloat().reduced ( 0.5f );
+
+        if ( backgroundColour.getAlpha() == 0 )
+        {
+            if ( isMouseOverButton )
+            {
+                g.setColour ( juce::Colour ( 0x08ffffff ) );
+                g.fillRect ( bounds );
+            }
+            return;
+        }
+
         float cornerSize = 4.0f;
         bool isOn = button.getToggleState();
 
@@ -151,36 +162,40 @@ public:
                         int, int, int, int, juce::ComboBox& box ) override
     {
         auto bounds = juce::Rectangle<float> ( 0, 0, (float) width, (float) height ).reduced ( 0.5f );
-        float cornerSize = 4.0f;
+        auto bgColour = box.findColour ( juce::ComboBox::backgroundColourId );
 
-        juce::ColourGradient grad ( ColourPalette::panelTop, 0, 0,
-                                    ColourPalette::panelBottom, 0, (float) height, false );
-        g.setGradientFill ( grad );
-        g.fillRoundedRectangle ( bounds, cornerSize );
+        if ( bgColour.getAlpha() > 0 )
+        {
+            float cornerSize = 4.0f;
 
-        g.setColour ( ColourPalette::bevelLight );
-        g.drawLine ( bounds.getX() + cornerSize, bounds.getY(),
-                     bounds.getRight() - cornerSize, bounds.getY(), 1.0f );
-        g.setColour ( ColourPalette::bevelDark );
-        g.drawLine ( bounds.getX() + cornerSize, bounds.getBottom(),
-                     bounds.getRight() - cornerSize, bounds.getBottom(), 1.0f );
+            juce::ColourGradient grad ( ColourPalette::panelTop, 0, 0,
+                                        ColourPalette::panelBottom, 0, (float) height, false );
+            g.setGradientFill ( grad );
+            g.fillRoundedRectangle ( bounds, cornerSize );
 
-        g.setColour ( ColourPalette::gridLine );
-        g.drawRoundedRectangle ( bounds, cornerSize, 0.5f );
+            g.setColour ( ColourPalette::bevelLight );
+            g.drawLine ( bounds.getX() + cornerSize, bounds.getY(),
+                         bounds.getRight() - cornerSize, bounds.getY(), 1.0f );
+            g.setColour ( ColourPalette::bevelDark );
+            g.drawLine ( bounds.getX() + cornerSize, bounds.getBottom(),
+                         bounds.getRight() - cornerSize, bounds.getBottom(), 1.0f );
 
-        float arrowSize = 6.0f;
-        float arrowX = (float) width - 14.0f;
+            g.setColour ( ColourPalette::gridLine );
+            g.drawRoundedRectangle ( bounds, cornerSize, 0.5f );
+        }
+
+        float arrowSize = 5.0f;
+        float arrowX = (float) width - 12.0f;
         float arrowY = (float) height * 0.5f;
 
         juce::Path arrow;
-        arrow.addTriangle ( arrowX - arrowSize * 0.5f, arrowY - 2.0f,
-                            arrowX + arrowSize * 0.5f, arrowY - 2.0f,
-                            arrowX, arrowY + 3.0f );
+        arrow.addTriangle ( arrowX - arrowSize * 0.5f, arrowY - 1.5f,
+                            arrowX + arrowSize * 0.5f, arrowY - 1.5f,
+                            arrowX, arrowY + 2.5f );
 
-        g.setColour ( isButtonDown ? ColourPalette::textBright : ColourPalette::axisText );
+        auto arrowColour = box.findColour ( juce::ComboBox::arrowColourId );
+        g.setColour ( isButtonDown ? arrowColour.brighter ( 0.5f ) : arrowColour );
         g.fillPath ( arrow );
-
-        (void) box;
     }
 
     void drawButtonText ( juce::Graphics& g, juce::TextButton& button,

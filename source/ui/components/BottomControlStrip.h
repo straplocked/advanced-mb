@@ -18,13 +18,10 @@
 #include "../../parameters/ParameterIDs.h"
 
 /**
- * @brief Global controls panel displayed at the bottom of the editor.
+ * @brief Compact global controls strip at the bottom of the editor.
  *
- * Provides Processing Mode, Oversampling, Analyzer Mode combo boxes plus
- * Global Output and Mix rotary knobs. All controls are wired to the APVTS
- * via standard JUCE attachments.
- *
- * Height: Constants::kBottomStripHeight (120px)
+ * Single-row, 28px tall inline text strip inspired by FabFilter Pro-MB.
+ * [Dynamic Phase] [Oversampling: Off] [Analyzer: Pre+Post] [Bands − 3 +] | [Mix 100%] [Output 0.0 dB]
  */
 class BottomControlStrip : public juce::Component
 {
@@ -38,38 +35,34 @@ public:
 private:
     juce::AudioProcessorValueTreeState& apvts;
 
-    // ========================= Combo boxes =========================
+    // Inline combo boxes
     juce::ComboBox processingModeCombo;
     juce::ComboBox oversamplingCombo;
     juce::ComboBox analyzerModeCombo;
 
-    juce::Label processingModeLabel;
+    // Prefix labels
     juce::Label oversamplingLabel;
-    juce::Label analyzerModeLabel;
+    juce::Label analyzerLabel;
+    juce::Label outputLabel;
+    juce::Label mixLabel;
 
-    // ========================= Knobs =========================
+    // Interactive sliders (LinearBar, transparent = text only)
     juce::Slider globalOutputSlider;
     juce::Slider mixSlider;
 
-    juce::Label globalOutputTitle;
-    juce::Label mixTitle;
-    juce::Label globalOutputValue;
-    juce::Label mixValue;
-
-    // ========================= Band count control =========================
+    // Band count control
+    juce::Label      bandsLabel;
     juce::TextButton bandsMinusButton { "-" };
-    juce::TextButton bandsPlusButton  { "+" };
     juce::Label      bandsValueLabel;
-    juce::Label      bandsTitle;
+    juce::TextButton bandsPlusButton  { "+" };
 
-    // ========================= APVTS Attachments =========================
+    // APVTS Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> processingModeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> oversamplingAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> analyzerModeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   globalOutputAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   mixAttach;
 
-    void updateValueLabels();
     void updateBandsLabel();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( BottomControlStrip )

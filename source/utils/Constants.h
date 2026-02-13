@@ -94,7 +94,7 @@ namespace Constants
 
     // UI layout
     constexpr int kHeaderHeight = 36;
-    constexpr int kBottomStripHeight = 120;
+    constexpr int kBottomStripHeight = 28;
     constexpr int kBandControlPanelHeight = 160;
     constexpr int kMeterWidth = 20;
 
