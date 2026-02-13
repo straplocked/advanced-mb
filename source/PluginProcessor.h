@@ -16,6 +16,7 @@
 #include "parameters/ParameterLayout.h"
 #include "parameters/MultibandParameterAttachment.h"
 #include "dsp/MultibandEngine.h"
+#include "dsp/BandManager.h"
 #include "analyzer/FFTProcessor.h"
 #include "metering/LevelMeterData.h"
 #include "presets/PresetManager.h"
@@ -60,6 +61,7 @@ public:
     juce::UndoManager& getUndoManager() { return undoManager; }
     LevelMeterData& getLevelMeterData() { return levelMeterData; }
     PresetManager& getPresetManager() { return presetManager; }
+    BandManager& getBandManager() { return bandManager; }
 
     // FFT data access for analyzer
     FFTProcessor& getPreFFT();
@@ -78,6 +80,7 @@ private:
     juce::AudioProcessorValueTreeState apvts;
 
     MultibandEngine multibandEngine;
+    BandManager bandManager;
     MultibandParameterAttachment paramAttachment;
 
     FFTProcessor fftProcessorPre;

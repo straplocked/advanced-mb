@@ -22,6 +22,8 @@ AdvancedMBProcessor::AdvancedMBProcessor()
       presetManager ( apvts )
 {
     paramAttachment.init ( apvts );
+    bandManager.init ( apvts );
+    paramAttachment.setBandManager ( &bandManager );
 }
 
 AdvancedMBProcessor::~AdvancedMBProcessor() = default;
@@ -111,9 +113,12 @@ void AdvancedMBProcessor::processBlock ( juce::AudioBuffer<float>& buffer,
     // Run the multiband compression engine
     multibandEngine.process ( buffer );
 
-    // Push per-band gain reduction to meter data
-    for ( int b = 0; b < params.numBands; ++b )
-        levelMeterData.pushBandGainReduction ( b, multibandEngine.getBandGainReduction ( b ) );
+    // Push per-band gain reduction to meter data using slot mapping
+    for ( int pos = 0; pos < params.numBands; ++pos )
+    {
+        int slot = params.slotOrder[pos];
+        levelMeterData.pushBandGainReduction ( pos, multibandEngine.getBandGainReduction ( slot ) );
+    }
 
     // Push output metering
     levelMeterData.pushOutputLevel ( buffer );
@@ -136,6 +141,7 @@ juce::AudioProcessorEditor* AdvancedMBProcessor::createEditor()
 void AdvancedMBProcessor::getStateInformation ( juce::MemoryBlock& destData )
 {
     auto state = apvts.copyState();
+    bandManager.writeToState ( state );
     std::unique_ptr<juce::XmlElement> xml ( state.createXml() );
     copyXmlToBinary ( *xml, destData );
 }
@@ -147,6 +153,7 @@ void AdvancedMBProcessor::setStateInformation ( const void* data, int sizeInByte
     if ( xml != nullptr && xml->hasTagName ( apvts.state.getType() ) )
     {
         auto state = juce::ValueTree::fromXml ( *xml );
+        bandManager.readFromState ( state );
         apvts.replaceState ( state );
     }
 }
