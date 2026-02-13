@@ -54,9 +54,14 @@ public:
     void mouseDown ( const juce::MouseEvent& e ) override;
     void mouseDrag ( const juce::MouseEvent& e ) override;
     void mouseUp ( const juce::MouseEvent& e ) override;
+    void mouseMove ( const juce::MouseEvent& e ) override;
+    void mouseExit ( const juce::MouseEvent& e ) override;
 
     /** Callback invoked when a band region is clicked (bandIndex 0..N-1). */
     std::function<void ( int )> onBandSelected;
+
+    /** Callback invoked when the already-selected band is clicked again (deselect). */
+    std::function<void()> onBandDeselected;
 
 private:
     // Coordinate helpers --------------------------------------------------
@@ -77,18 +82,32 @@ private:
 
     // Hit-testing helpers -------------------------------------------------
     int crossoverHandleAtPoint ( juce::Point<float> point ) const;
+    int thresholdAtPoint ( juce::Point<float> point ) const;
     int bandAtX ( float x ) const;
     void showBandContextMenu ( int bandIndex );
+    void updateCursor();
 
     // Data ----------------------------------------------------------------
     AdvancedMBProcessor* processor = nullptr;
     int selectedBand = -1;
-    int draggingCrossover = -1; // -1 = not dragging
+    int draggingCrossover = -1;     // -1 = not dragging
+    int draggingThresholdBand = -1; // -1 = not dragging
+
+    // Hover state
+    int hoveredBand = -1;
+    int hoveredCrossover = -1;
+    int hoveredThreshold = -1;
+
+    // Crossover drag tooltip
+    bool showingFreqTooltip = false;
+    float tooltipFreq = 0.0f;
+    float tooltipX = 0.0f;
+    float tooltipY = 0.0f;
 
     float minDB = -60.0f;
     float maxDB = 6.0f;
 
-    static constexpr float kHandleRadius = 7.0f;
+    static constexpr float kHandleRadius = 8.0f;
     static constexpr float kHandleHitRadius = 12.0f;
 
     // Band colour look-up tables (indexed by band) -----------------------

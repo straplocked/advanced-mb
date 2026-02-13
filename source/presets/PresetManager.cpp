@@ -45,11 +45,17 @@ juce::File PresetManager::getUserPresetsDirectory() const
 
 void PresetManager::rebuildPresetList()
 {
-    presetList.clear();
+    presets.clear();
 
     // Factory presets
     for ( auto& fp : FactoryPresets::getAll() )
-        presetList.add ( fp.name );
+    {
+        Preset p;
+        p.name = fp.name;
+        p.category = fp.category;
+        p.isFactory = true;
+        presets.push_back ( p );
+    }
 
     // User presets from disk
     auto dir = getUserPresetsDirectory();
@@ -58,15 +64,31 @@ void PresetManager::rebuildPresetList()
         for ( auto& file : dir.findChildFiles ( juce::File::findFiles, false, "*.xml" ) )
         {
             auto name = file.getFileNameWithoutExtension();
-            if ( ! presetList.contains ( name ) )
-                presetList.add ( name );
+
+            // Don't duplicate factory preset names
+            bool duplicate = false;
+            for ( auto& existing : presets )
+                if ( existing.name == name ) { duplicate = true; break; }
+
+            if ( ! duplicate )
+            {
+                Preset p;
+                p.name = name;
+                p.category = "User";
+                p.isFactory = false;
+                p.file = file;
+                presets.push_back ( p );
+            }
         }
     }
 }
 
 juce::StringArray PresetManager::getPresetList() const
 {
-    return presetList;
+    juce::StringArray list;
+    for ( auto& p : presets )
+        list.add ( p.name );
+    return list;
 }
 
 juce::String PresetManager::getCurrentPresetName() const
@@ -75,7 +97,7 @@ juce::String PresetManager::getCurrentPresetName() const
 }
 
 //==============================================================================
-// Save / Load / Delete
+// Save / Load / Delete (string-based legacy API)
 //==============================================================================
 
 void PresetManager::savePreset ( const juce::String& name )
@@ -155,24 +177,145 @@ void PresetManager::deletePreset ( const juce::String& name )
 
 void PresetManager::loadNextPreset()
 {
-    if ( presetList.isEmpty() )
+    if ( presets.empty() )
         return;
 
-    int idx = presetList.indexOf ( currentPresetName );
-    int next = ( idx + 1 ) % presetList.size();
-    loadPreset ( presetList[next] );
+    int idx = getCurrentPresetIndex();
+    int next = ( idx + 1 ) % static_cast<int> ( presets.size() );
+    applyPreset ( next );
 }
 
 void PresetManager::loadPreviousPreset()
 {
-    if ( presetList.isEmpty() )
+    if ( presets.empty() )
         return;
 
-    int idx = presetList.indexOf ( currentPresetName );
+    int idx = getCurrentPresetIndex();
     int prev = idx - 1;
     if ( prev < 0 )
-        prev = presetList.size() - 1;
-    loadPreset ( presetList[prev] );
+        prev = static_cast<int> ( presets.size() ) - 1;
+    applyPreset ( prev );
+}
+
+//==============================================================================
+// Index-based API
+//==============================================================================
+
+std::vector<juce::String> PresetManager::getCategories() const
+{
+    std::vector<juce::String> cats;
+    for ( auto& p : presets )
+    {
+        bool found = false;
+        for ( auto& c : cats )
+            if ( c == p.category ) { found = true; break; }
+        if ( ! found )
+            cats.push_back ( p.category );
+    }
+    return cats;
+}
+
+void PresetManager::applyPreset ( int presetIndex )
+{
+    if ( presetIndex < 0 || presetIndex >= static_cast<int> ( presets.size() ) )
+        return;
+
+    auto& preset = presets[static_cast<size_t> ( presetIndex )];
+    loadPreset ( preset.name );
+}
+
+bool PresetManager::saveCurrentAsPreset ( const juce::String& name, const juce::String& )
+{
+    if ( name.isEmpty() )
+        return false;
+
+    savePreset ( name );
+    return true;
+}
+
+bool PresetManager::deleteUserPreset ( int presetIndex )
+{
+    if ( presetIndex < 0 || presetIndex >= static_cast<int> ( presets.size() ) )
+        return false;
+
+    auto& preset = presets[static_cast<size_t> ( presetIndex )];
+    if ( preset.isFactory )
+        return false;
+
+    deletePreset ( preset.name );
+    return true;
+}
+
+bool PresetManager::exportPresetToJSON ( int presetIndex, const juce::File& file )
+{
+    if ( presetIndex < 0 || presetIndex >= static_cast<int> ( presets.size() ) )
+        return false;
+
+    // Apply preset first so state is current
+    applyPreset ( presetIndex );
+
+    auto state = apvts.copyState();
+    auto xml = state.createXml();
+    if ( xml == nullptr )
+        return false;
+
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty ( "name", presets[static_cast<size_t> ( presetIndex )].name );
+    obj->setProperty ( "category", presets[static_cast<size_t> ( presetIndex )].category );
+    obj->setProperty ( "state", xml->toString() );
+
+    file.replaceWithText ( juce::JSON::toString ( juce::var ( obj.get() ) ) );
+    return true;
+}
+
+bool PresetManager::importPresetFromJSON ( const juce::File& file )
+{
+    auto json = juce::JSON::parse ( file.loadFileAsString() );
+    if ( ! json.isObject() )
+        return false;
+
+    auto* obj = json.getDynamicObject();
+    if ( obj == nullptr )
+        return false;
+
+    auto name = obj->getProperty ( "name" ).toString();
+    auto stateStr = obj->getProperty ( "state" ).toString();
+
+    if ( name.isEmpty() || stateStr.isEmpty() )
+        return false;
+
+    auto xml = juce::XmlDocument::parse ( stateStr );
+    if ( xml == nullptr )
+        return false;
+
+    auto newState = juce::ValueTree::fromXml ( *xml );
+    if ( ! newState.isValid() )
+        return false;
+
+    // Save as a user preset file
+    auto dir = getUserPresetsDirectory();
+    dir.createDirectory();
+
+    auto safeName = juce::File::createLegalFileName ( name );
+    auto presetFile = dir.getChildFile ( safeName + ".xml" );
+
+    juce::XmlElement wrapper ( "AdvancedMBPreset" );
+    wrapper.setAttribute ( "name", name );
+    wrapper.addChildElement ( new juce::XmlElement ( *xml ) );
+    wrapper.getChildElement ( 0 )->setTagName ( "ParameterState" );
+    wrapper.writeTo ( presetFile );
+
+    rebuildPresetList();
+    notifyListeners();
+    return true;
+}
+
+int PresetManager::getCurrentPresetIndex() const
+{
+    for ( int i = 0; i < static_cast<int> ( presets.size() ); ++i )
+        if ( presets[static_cast<size_t> ( i )].name == currentPresetName )
+            return i;
+    return 0;
 }
 
 //==============================================================================

@@ -25,10 +25,18 @@
 class PresetManager
 {
 public:
+    struct Preset
+    {
+        juce::String name;
+        juce::String category;
+        bool isFactory = false;
+        juce::File file;  // empty for factory presets
+    };
+
     explicit PresetManager ( juce::AudioProcessorValueTreeState& apvts );
 
     //==============================================================================
-    // Navigation
+    // String-based navigation (legacy API)
 
     void savePreset ( const juce::String& name );
     void loadPreset ( const juce::String& name );
@@ -39,6 +47,18 @@ public:
 
     void loadNextPreset();
     void loadPreviousPreset();
+
+    //==============================================================================
+    // Index-based API (for PresetBrowserPanel)
+
+    const std::vector<Preset>& getAllPresets() const { return presets; }
+    std::vector<juce::String> getCategories() const;
+    void applyPreset ( int presetIndex );
+    bool saveCurrentAsPreset ( const juce::String& name, const juce::String& category = "User" );
+    bool deleteUserPreset ( int presetIndex );
+    bool exportPresetToJSON ( int presetIndex, const juce::File& file );
+    bool importPresetFromJSON ( const juce::File& file );
+    int getCurrentPresetIndex() const;
 
     //==============================================================================
     // Factory preset helpers
@@ -67,7 +87,7 @@ public:
 private:
     juce::AudioProcessorValueTreeState& apvts;
 
-    juce::StringArray presetList;
+    std::vector<Preset> presets;
     juce::String currentPresetName { "Init" };
 
     juce::ListenerList<Listener> listeners;

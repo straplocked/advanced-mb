@@ -326,15 +326,44 @@ void MultibandDisplay::drawCrossovers ( juce::Graphics& g )
         g.drawDashedLine ( juce::Line<float> ( x, 0.0f, x, h ),
                            dashLengths, 2, 1.5f );
 
-        // Handle circle at top
+        // Handle circle at top - brighten when hovered or dragged
         bool isDragging = ( draggingCrossover == i );
-        g.setColour ( isDragging ? ColourPalette::crossoverHandle.brighter ( 0.4f )
-                                 : ColourPalette::crossoverHandle );
+        bool isHovered  = ( hoveredCrossover == i );
+        juce::Colour handleCol = ColourPalette::crossoverHandle;
+
+        if ( isDragging )
+            handleCol = handleCol.brighter ( 0.4f );
+        else if ( isHovered )
+            handleCol = handleCol.brighter ( 0.3f );
+
+        g.setColour ( handleCol );
         g.fillEllipse ( x - kHandleRadius, kHandleRadius * 0.5f,
                         kHandleRadius * 2.0f, kHandleRadius * 2.0f );
         g.setColour ( ColourPalette::curveArea );
         g.fillEllipse ( x - kHandleRadius + 2.0f, kHandleRadius * 0.5f + 2.0f,
                         kHandleRadius * 2.0f - 4.0f, kHandleRadius * 2.0f - 4.0f );
+    }
+
+    // Frequency tooltip during crossover drag
+    if ( showingFreqTooltip && draggingCrossover >= 0 )
+    {
+        juce::String freqText = FrequencyUtils::formatFrequency ( tooltipFreq );
+        g.setFont ( Fonts::getBody ( 11.0f ) );
+
+        int textW = g.getCurrentFont().getStringWidth ( freqText ) + 10;
+        int textH = 18;
+        int tx = juce::roundToInt ( tooltipX ) - textW / 2;
+        int ty = juce::roundToInt ( tooltipY ) - textH - 8;
+
+        // Clamp to display bounds
+        tx = juce::jlimit ( 2, getWidth() - textW - 2, tx );
+        ty = juce::jmax ( 2, ty );
+
+        g.setColour ( ColourPalette::panelTop.withAlpha ( 0.9f ) );
+        g.fillRoundedRectangle ( static_cast<float> ( tx ), static_cast<float> ( ty ),
+                                  static_cast<float> ( textW ), static_cast<float> ( textH ), 3.0f );
+        g.setColour ( ColourPalette::textBright );
+        g.drawText ( freqText, tx, ty, textW, textH, juce::Justification::centred, false );
     }
 }
 
@@ -442,6 +471,48 @@ int MultibandDisplay::crossoverHandleAtPoint ( juce::Point<float> point ) const
     return -1;
 }
 
+int MultibandDisplay::thresholdAtPoint ( juce::Point<float> point ) const
+{
+    if ( processor == nullptr )
+        return -1;
+
+    auto params = processor->getParameterAttachment().getCurrentParameters();
+    int numBands = params.numBands;
+
+    if ( numBands < 1 )
+        return -1;
+
+    const float w = static_cast<float> ( getWidth() );
+    constexpr float hitTolerance = 8.0f;
+
+    std::vector<float> xPositions;
+    xPositions.push_back ( 0.0f );
+
+    for ( int i = 0; i < numBands - 1; ++i )
+        xPositions.push_back ( frequencyToX ( params.crossovers[i].frequency ) );
+
+    xPositions.push_back ( w );
+
+    for ( int b = 0; b < numBands; ++b )
+    {
+        if ( ! params.bands[b].enabled )
+            continue;
+
+        float x0 = xPositions[static_cast<size_t> ( b )];
+        float x1 = xPositions[static_cast<size_t> ( b + 1 )];
+
+        if ( point.x < x0 || point.x > x1 )
+            continue;
+
+        float threshY = dbToY ( params.bands[b].threshold );
+
+        if ( std::abs ( point.y - threshY ) < hitTolerance )
+            return b;
+    }
+
+    return -1;
+}
+
 int MultibandDisplay::bandAtX ( float x ) const
 {
     if ( processor == nullptr )
@@ -474,8 +545,45 @@ int MultibandDisplay::bandAtX ( float x ) const
 }
 
 //==============================================================================
+// Cursor management
+//==============================================================================
+
+void MultibandDisplay::updateCursor()
+{
+    if ( hoveredCrossover >= 0 )
+        setMouseCursor ( juce::MouseCursor::LeftRightResizeCursor );
+    else if ( hoveredThreshold >= 0 )
+        setMouseCursor ( juce::MouseCursor::UpDownResizeCursor );
+    else if ( hoveredBand >= 0 )
+        setMouseCursor ( juce::MouseCursor::PointingHandCursor );
+    else
+        setMouseCursor ( juce::MouseCursor::NormalCursor );
+}
+
+//==============================================================================
 // Mouse interaction
 //==============================================================================
+
+void MultibandDisplay::mouseMove ( const juce::MouseEvent& e )
+{
+    auto pos = e.position;
+
+    hoveredCrossover = crossoverHandleAtPoint ( pos );
+    hoveredThreshold = ( hoveredCrossover < 0 ) ? thresholdAtPoint ( pos ) : -1;
+    hoveredBand = ( hoveredCrossover < 0 && hoveredThreshold < 0 ) ? bandAtX ( pos.x ) : -1;
+
+    updateCursor();
+    repaint();
+}
+
+void MultibandDisplay::mouseExit ( const juce::MouseEvent& )
+{
+    hoveredCrossover = -1;
+    hoveredThreshold = -1;
+    hoveredBand = -1;
+    setMouseCursor ( juce::MouseCursor::NormalCursor );
+    repaint();
+}
 
 void MultibandDisplay::mouseDown ( const juce::MouseEvent& e )
 {
@@ -490,6 +598,16 @@ void MultibandDisplay::mouseDown ( const juce::MouseEvent& e )
     if ( handle >= 0 )
     {
         draggingCrossover = handle;
+        showingFreqTooltip = true;
+        return;
+    }
+
+    // Check threshold lines
+    int thresh = thresholdAtPoint ( pos );
+
+    if ( thresh >= 0 )
+    {
+        draggingThresholdBand = thresh;
         return;
     }
 
@@ -502,10 +620,21 @@ void MultibandDisplay::mouseDown ( const juce::MouseEvent& e )
         return;
     }
 
-    // Left-click selects band
+    // Left-click: toggle selection (click same band to deselect)
     int band = bandAtX ( pos.x );
+
     if ( band >= 0 )
     {
+        if ( band == selectedBand )
+        {
+            selectedBand = -1;
+
+            if ( onBandDeselected )
+                onBandDeselected();
+
+            return;
+        }
+
         selectedBand = band;
 
         if ( onBandSelected )
@@ -515,25 +644,52 @@ void MultibandDisplay::mouseDown ( const juce::MouseEvent& e )
 
 void MultibandDisplay::mouseDrag ( const juce::MouseEvent& e )
 {
-    if ( draggingCrossover < 0 || processor == nullptr )
+    if ( processor == nullptr )
         return;
 
-    float newFreq = xToFrequency ( e.position.x );
-    newFreq = juce::jlimit ( Constants::kMinFrequency, Constants::kMaxFrequency, newFreq );
+    // Crossover dragging
+    if ( draggingCrossover >= 0 )
+    {
+        float newFreq = xToFrequency ( e.position.x );
+        newFreq = juce::jlimit ( Constants::kMinFrequency, Constants::kMaxFrequency, newFreq );
 
-    // Set through the APVTS so it propagates properly
-    juce::String paramID = ParameterIDs::crossoverParam (
-        draggingCrossover, ParameterIDs::Crossover::frequency );
+        juce::String paramID = ParameterIDs::crossoverParam (
+            draggingCrossover, ParameterIDs::Crossover::frequency );
 
-    if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
-        param->setValueNotifyingHost ( param->convertTo0to1 ( newFreq ) );
+        if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
+            param->setValueNotifyingHost ( param->convertTo0to1 ( newFreq ) );
 
-    repaint();
+        tooltipFreq = newFreq;
+        tooltipX = e.position.x;
+        tooltipY = e.position.y;
+        showingFreqTooltip = true;
+
+        repaint();
+        return;
+    }
+
+    // Threshold dragging
+    if ( draggingThresholdBand >= 0 )
+    {
+        float newDB = yToDb ( e.position.y );
+        newDB = juce::jlimit ( Constants::kMinThreshold, Constants::kMaxThreshold, newDB );
+
+        juce::String paramID = ParameterIDs::bandParam (
+            draggingThresholdBand, ParameterIDs::Band::threshold );
+
+        if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
+            param->setValueNotifyingHost ( param->convertTo0to1 ( newDB ) );
+
+        repaint();
+    }
 }
 
 void MultibandDisplay::mouseUp ( const juce::MouseEvent& )
 {
     draggingCrossover = -1;
+    draggingThresholdBand = -1;
+    showingFreqTooltip = false;
+    repaint();
 }
 
 //==============================================================================

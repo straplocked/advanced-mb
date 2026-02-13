@@ -18,6 +18,7 @@
 #include "dsp/MultibandEngine.h"
 #include "analyzer/FFTProcessor.h"
 #include "metering/LevelMeterData.h"
+#include "presets/PresetManager.h"
 #include "utils/Constants.h"
 
 class AdvancedMBProcessor : public juce::AudioProcessor
@@ -58,6 +59,7 @@ public:
     MultibandParameterAttachment& getParameterAttachment() { return paramAttachment; }
     juce::UndoManager& getUndoManager() { return undoManager; }
     LevelMeterData& getLevelMeterData() { return levelMeterData; }
+    PresetManager& getPresetManager() { return presetManager; }
 
     // FFT data access for analyzer
     FFTProcessor& getPreFFT();
@@ -82,6 +84,8 @@ private:
     FFTProcessor fftProcessorPost;
 
     LevelMeterData levelMeterData;
+
+    PresetManager presetManager;
 
     // A/B state storage
     juce::MemoryBlock stateSlotA;

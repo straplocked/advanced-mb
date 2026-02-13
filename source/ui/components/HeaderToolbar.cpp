@@ -13,8 +13,11 @@
 #include "../../PluginProcessor.h"
 
 HeaderToolbar::HeaderToolbar ( AdvancedMBProcessor& p )
-    : processor ( p )
+    : processor ( p ),
+      presetManager ( p.getPresetManager() )
 {
+    presetManager.addListener ( this );
+
     // ========================= Undo / Redo =========================
     setupFlatButton ( undoButton, "header.undo", ColourPalette::textDim );
     undoButton.onClick = [this] { processor.getUndoManager().undo(); };
@@ -24,16 +27,10 @@ HeaderToolbar::HeaderToolbar ( AdvancedMBProcessor& p )
 
     // ========================= Preset navigation =========================
     setupFlatButton ( prevButton, "header.prevPreset", ColourPalette::textDim );
-    prevButton.onClick = [this]
-    {
-        // Preset manager callback will be wired by the editor
-    };
+    prevButton.onClick = [this] { presetManager.loadPreviousPreset(); };
 
     setupFlatButton ( nextButton, "header.nextPreset", ColourPalette::textDim );
-    nextButton.onClick = [this]
-    {
-        // Preset manager callback will be wired by the editor
-    };
+    nextButton.onClick = [this] { presetManager.loadNextPreset(); };
 
     presetNameButton.setComponentID ( "header.presetName" );
     presetNameButton.setColour ( juce::TextButton::buttonColourId, juce::Colours::transparentBlack );
@@ -44,6 +41,10 @@ HeaderToolbar::HeaderToolbar ( AdvancedMBProcessor& p )
             onPresetNameClicked();
     };
     addAndMakeVisible ( presetNameButton );
+
+    // Save button
+    setupFlatButton ( saveButton, "header.savePreset", ColourPalette::textDim );
+    saveButton.onClick = [this] { showSaveDialog(); };
 
     // ========================= A/B comparison =========================
     setupFlatButton ( abButton, "header.abToggle", ColourPalette::textBright );
@@ -69,9 +70,48 @@ HeaderToolbar::HeaderToolbar ( AdvancedMBProcessor& p )
         if ( onHelpClicked )
             onHelpClicked();
     };
+
+    updatePresetName();
 }
 
-HeaderToolbar::~HeaderToolbar() = default;
+HeaderToolbar::~HeaderToolbar()
+{
+    presetManager.removeListener ( this );
+}
+
+void HeaderToolbar::presetChanged()
+{
+    updatePresetName();
+}
+
+void HeaderToolbar::updatePresetName()
+{
+    presetNameButton.setButtonText ( presetManager.getCurrentPresetName() );
+}
+
+void HeaderToolbar::showSaveDialog()
+{
+    auto callback = [this] ( int result, const juce::String& name )
+    {
+        if ( result == 1 && name.isNotEmpty() )
+            presetManager.saveCurrentAsPreset ( name );
+    };
+
+    auto* alertWindow = new juce::AlertWindow ( "Save Preset", "Enter preset name:",
+                                                 juce::MessageBoxIconType::NoIcon );
+    alertWindow->addTextEditor ( "name", presetManager.getCurrentPresetName(), "Preset Name:" );
+    alertWindow->addButton ( "Save", 1 );
+    alertWindow->addButton ( "Cancel", 0 );
+
+    alertWindow->enterModalState ( true,
+        juce::ModalCallbackFunction::create ( [alertWindow, callback] ( int result )
+        {
+            juce::String name = alertWindow->getTextEditorContents ( "name" );
+            callback ( result, name );
+            delete alertWindow;
+        } ),
+        false );
+}
 
 void HeaderToolbar::paint ( juce::Graphics& g )
 {
@@ -134,7 +174,7 @@ void HeaderToolbar::resized()
     // === Center: preset navigation ===
     auto presetBounds = bounds;
     auto presetArea = presetBounds.withSizeKeepingCentre (
-        juce::jmin ( 260, presetBounds.getWidth() ), presetBounds.getHeight() );
+        juce::jmin ( 300, presetBounds.getWidth() ), presetBounds.getHeight() );
 
     auto prevBtnArea = presetArea.removeFromLeft ( 24 );
     prevButton.setBounds ( prevBtnArea.withHeight ( btnH ).withCentre ( prevBtnArea.getCentre() ) );
@@ -142,6 +182,11 @@ void HeaderToolbar::resized()
 
     auto nextBtnArea = presetArea.removeFromRight ( 24 );
     nextButton.setBounds ( nextBtnArea.withHeight ( btnH ).withCentre ( nextBtnArea.getCentre() ) );
+    presetArea.removeFromRight ( 4 );
+
+    // Save button right of next
+    auto saveBtnArea = presetArea.removeFromRight ( 38 );
+    saveButton.setBounds ( saveBtnArea.withHeight ( btnH ).withCentre ( saveBtnArea.getCentre() ) );
     presetArea.removeFromRight ( 4 );
 
     presetNameButton.setBounds ( presetArea.withHeight ( btnH ).withCentre ( presetArea.getCentre() ) );

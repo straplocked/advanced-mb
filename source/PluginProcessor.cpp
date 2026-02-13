@@ -18,7 +18,8 @@ AdvancedMBProcessor::AdvancedMBProcessor()
                        .withInput  ( "Input",    juce::AudioChannelSet::stereo(), true )
                        .withOutput ( "Output",   juce::AudioChannelSet::stereo(), true )
                        .withInput  ( "Sidechain", juce::AudioChannelSet::stereo(), false ) ),
-      apvts ( *this, &undoManager, "AdvancedMBState", ParameterLayout::createLayout() )
+      apvts ( *this, &undoManager, "AdvancedMBState", ParameterLayout::createLayout() ),
+      presetManager ( apvts )
 {
     paramAttachment.init ( apvts );
 }

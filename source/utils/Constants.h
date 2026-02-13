@@ -88,13 +88,14 @@ namespace Constants
     constexpr int kDefaultEditorWidth = 1100;
     constexpr int kDefaultEditorHeight = 660;
     constexpr int kMinEditorWidth = 825;
-    constexpr int kMinEditorHeight = 495;
+    constexpr int kMinEditorHeight = 560;
     constexpr int kMaxEditorWidth = 2112;
     constexpr int kMaxEditorHeight = 1188;
 
     // UI layout
     constexpr int kHeaderHeight = 36;
     constexpr int kBottomStripHeight = 120;
+    constexpr int kBandControlPanelHeight = 160;
     constexpr int kMeterWidth = 20;
 
     // FFT configuration

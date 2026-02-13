@@ -10,6 +10,7 @@
  */
 
 #include "BottomControlStrip.h"
+#include "../../utils/Constants.h"
 
 BottomControlStrip::BottomControlStrip ( juce::AudioProcessorValueTreeState& vts )
     : apvts ( vts )
@@ -92,8 +93,51 @@ BottomControlStrip::BottomControlStrip ( juce::AudioProcessorValueTreeState& vts
     mixAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, ParameterIDs::Global::mix, mixSlider );
 
+    // ========================= Band count control =========================
+    bandsTitle.setText ( "Bands", juce::dontSendNotification );
+    bandsTitle.setJustificationType ( juce::Justification::centred );
+    bandsTitle.setFont ( Fonts::getBody ( 10.0f ) );
+    bandsTitle.setColour ( juce::Label::textColourId, ColourPalette::textDim );
+    addAndMakeVisible ( bandsTitle );
+
+    bandsValueLabel.setJustificationType ( juce::Justification::centred );
+    bandsValueLabel.setFont ( Fonts::getBold ( 14.0f ) );
+    bandsValueLabel.setColour ( juce::Label::textColourId, ColourPalette::textBright );
+    addAndMakeVisible ( bandsValueLabel );
+
+    bandsMinusButton.setComponentID ( "global.numBandsMinus" );
+    bandsMinusButton.setColour ( juce::TextButton::buttonColourId, ColourPalette::knobBackground );
+    bandsMinusButton.setColour ( juce::TextButton::textColourOffId, ColourPalette::textBright );
+    bandsMinusButton.onClick = [this]
+    {
+        if ( auto* param = apvts.getParameter ( ParameterIDs::Global::numBands ) )
+        {
+            float current = param->convertFrom0to1 ( param->getValue() );
+            float newVal = juce::jmax ( 1.0f, current - 1.0f );
+            param->setValueNotifyingHost ( param->convertTo0to1 ( newVal ) );
+            updateBandsLabel();
+        }
+    };
+    addAndMakeVisible ( bandsMinusButton );
+
+    bandsPlusButton.setComponentID ( "global.numBandsPlus" );
+    bandsPlusButton.setColour ( juce::TextButton::buttonColourId, ColourPalette::knobBackground );
+    bandsPlusButton.setColour ( juce::TextButton::textColourOffId, ColourPalette::textBright );
+    bandsPlusButton.onClick = [this]
+    {
+        if ( auto* param = apvts.getParameter ( ParameterIDs::Global::numBands ) )
+        {
+            float current = param->convertFrom0to1 ( param->getValue() );
+            float newVal = juce::jmin ( static_cast<float> ( Constants::kMaxBands ), current + 1.0f );
+            param->setValueNotifyingHost ( param->convertTo0to1 ( newVal ) );
+            updateBandsLabel();
+        }
+    };
+    addAndMakeVisible ( bandsPlusButton );
+
     // Initial value update
     updateValueLabels();
+    updateBandsLabel();
 }
 
 BottomControlStrip::~BottomControlStrip()
@@ -114,6 +158,15 @@ void BottomControlStrip::updateValueLabels()
     mixValue.setText (
         juce::String ( (int) mixSlider.getValue() ) + "%",
         juce::dontSendNotification );
+}
+
+void BottomControlStrip::updateBandsLabel()
+{
+    if ( auto* param = apvts.getRawParameterValue ( ParameterIDs::Global::numBands ) )
+    {
+        int numBands = juce::roundToInt ( param->load() );
+        bandsValueLabel.setText ( juce::String ( numBands ), juce::dontSendNotification );
+    }
 }
 
 void BottomControlStrip::paint ( juce::Graphics& g )
@@ -149,9 +202,10 @@ void BottomControlStrip::resized()
     int knobH = bounds.getHeight();
     int gap = 12;
 
-    // === Left half: combo boxes ===
+    // === Left half: combo boxes + band count ===
     auto leftHalf = bounds.removeFromLeft ( bounds.getWidth() / 2 );
-    int comboContentW = comboW * 3 + gap * 2;
+    int bandCtrlW = 100;
+    int comboContentW = comboW * 3 + gap * 2 + gap + bandCtrlW;
     auto comboRow = leftHalf.withSizeKeepingCentre ( comboContentW, leftHalf.getHeight() );
 
     auto layoutCombo = [] ( juce::ComboBox& combo, juce::Label& label,
@@ -168,6 +222,17 @@ void BottomControlStrip::resized()
     layoutCombo ( oversamplingCombo, oversamplingLabel, comboRow, comboW, comboH, labelH );
     comboRow.removeFromLeft ( gap );
     layoutCombo ( analyzerModeCombo, analyzerModeLabel, comboRow, comboW, comboH, labelH );
+
+    // Band count control
+    comboRow.removeFromLeft ( gap );
+    auto bandCol = comboRow.removeFromLeft ( bandCtrlW );
+    bandsTitle.setBounds ( bandCol.removeFromTop ( labelH ) );
+    bandCol.removeFromTop ( 2 );
+    auto bandBtnRow = bandCol.removeFromTop ( comboH );
+    int btnW = 26;
+    bandsMinusButton.setBounds ( bandBtnRow.removeFromLeft ( btnW ) );
+    bandsValueLabel.setBounds ( bandBtnRow.removeFromLeft ( bandBtnRow.getWidth() - btnW ) );
+    bandsPlusButton.setBounds ( bandBtnRow );
 
     // === Right half: rotary knobs ===
     auto rightHalf = bounds;

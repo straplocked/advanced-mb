@@ -17,7 +17,8 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
       processor ( p ),
       headerToolbar ( p ),
       bandControlPanel ( p.getAPVTS() ),
-      bottomControlStrip ( p.getAPVTS() )
+      bottomControlStrip ( p.getAPVTS() ),
+      presetBrowser ( p.getPresetManager() )
 {
     setLookAndFeel ( &lookAndFeel );
 
@@ -28,14 +29,28 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     addAndMakeVisible ( bottomControlStrip );
     addAndMakeVisible ( levelMeter );
 
-    // BandControlPanel is an overlay inside the multiband display area
-    multibandDisplay.addChildComponent ( bandControlPanel );
+    // BandControlPanel is a sibling docked at the bottom (not an overlay)
+    addChildComponent ( bandControlPanel );
+
+    // PresetBrowserPanel overlays the right side of the display
+    addChildComponent ( presetBrowser );
+
+    // HelpOverlay covers the entire editor
+    addChildComponent ( helpOverlay );
 
     // When a band is clicked in the display, show its controls
     multibandDisplay.onBandSelected = [this] ( int bandIndex )
     {
         bandControlPanel.setSelectedBand ( bandIndex );
         bandControlPanel.setVisible ( true );
+        resized();
+    };
+
+    // When the same band is clicked again, deselect it
+    multibandDisplay.onBandDeselected = [this]
+    {
+        bandControlPanel.setVisible ( false );
+        resized();
     };
 
     // When the band control panel is closed, deselect the band
@@ -43,6 +58,22 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     {
         bandControlPanel.setVisible ( false );
         multibandDisplay.setSelectedBand ( -1 );
+        resized();
+    };
+
+    // Clicking preset name toggles preset browser
+    headerToolbar.onPresetNameClicked = [this]
+    {
+        presetBrowser.setVisible ( ! presetBrowser.isVisible() );
+        resized();
+    };
+
+    // Help button toggles help overlay
+    headerToolbar.onHelpClicked = [this]
+    {
+        helpOverlay.setVisible ( ! helpOverlay.isVisible() );
+        if ( helpOverlay.isVisible() )
+            helpOverlay.toFront ( false );
     };
 
     setSize ( Constants::kDefaultEditorWidth, Constants::kDefaultEditorHeight );
@@ -74,23 +105,41 @@ void AdvancedMBEditor::resized()
     // Bottom control strip across the bottom
     bottomControlStrip.setBounds ( bounds.removeFromBottom ( Constants::kBottomStripHeight ) );
 
+    // Band control panel docked above the bottom strip (only when visible)
+    if ( bandControlPanel.isVisible() )
+        bandControlPanel.setBounds ( bounds.removeFromBottom ( Constants::kBandControlPanelHeight ) );
+
     // Level meter on the right edge of the remaining centre area
     levelMeter.setBounds ( bounds.removeFromRight ( Constants::kMeterWidth ) );
 
     // Multiband display fills the rest
     multibandDisplay.setBounds ( bounds );
 
-    // BandControlPanel is positioned within the multiband display's local bounds
-    auto displayLocal = multibandDisplay.getLocalBounds();
-    int panelW = juce::jmin ( 360, displayLocal.getWidth() );
-    int panelH = juce::jmin ( 280, displayLocal.getHeight() );
-    bandControlPanel.setBounds ( displayLocal.getCentreX() - panelW / 2,
-                                 displayLocal.getCentreY() - panelH / 2,
-                                 panelW, panelH );
+    // Preset browser overlays the right side of the display area
+    if ( presetBrowser.isVisible() )
+    {
+        int browserW = juce::jmin ( 350, bounds.getWidth() );
+        presetBrowser.setBounds ( bounds.getRight() - browserW,
+                                   bounds.getY(),
+                                   browserW, bounds.getHeight() );
+    }
+
+    // Help overlay covers everything
+    helpOverlay.setBounds ( getLocalBounds() );
+    helpOverlay.toFront ( false );
 }
 
 void AdvancedMBEditor::timerCallback()
 {
+    auto& meterData = processor.getLevelMeterData();
+
+    if ( meterData.getBuffer().swapRead() )
+    {
+        const auto& frame = meterData.getBuffer().getReadPointer()[0];
+        levelMeter.setLevels ( frame.outputL, frame.outputR,
+                               frame.outputL, frame.outputR );
+    }
+
     multibandDisplay.repaint();
     levelMeter.repaint();
 }

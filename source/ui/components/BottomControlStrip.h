@@ -56,6 +56,12 @@ private:
     juce::Label globalOutputValue;
     juce::Label mixValue;
 
+    // ========================= Band count control =========================
+    juce::TextButton bandsMinusButton { "-" };
+    juce::TextButton bandsPlusButton  { "+" };
+    juce::Label      bandsValueLabel;
+    juce::Label      bandsTitle;
+
     // ========================= APVTS Attachments =========================
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> processingModeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> oversamplingAttach;
@@ -64,6 +70,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   mixAttach;
 
     void updateValueLabels();
+    void updateBandsLabel();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( BottomControlStrip )
 };

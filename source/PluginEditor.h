@@ -18,6 +18,8 @@
 #include "ui/components/BandControlPanel.h"
 #include "ui/components/BottomControlStrip.h"
 #include "ui/components/LevelMeterComponent.h"
+#include "ui/components/PresetBrowserPanel.h"
+#include "ui/help/HelpOverlay.h"
 #include "utils/Constants.h"
 
 class AdvancedMBEditor : public juce::AudioProcessorEditor,
@@ -42,6 +44,8 @@ private:
     BandControlPanel bandControlPanel;
     BottomControlStrip bottomControlStrip;
     LevelMeterComponent levelMeter;
+    PresetBrowserPanel presetBrowser;
+    HelpOverlay helpOverlay;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( AdvancedMBEditor )
 };

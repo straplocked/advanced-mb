@@ -14,10 +14,12 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../LookAndFeel/ColourPalette.h"
 #include "../LookAndFeel/Fonts.h"
+#include "../../presets/PresetManager.h"
 
 class AdvancedMBProcessor;
 
-class HeaderToolbar : public juce::Component
+class HeaderToolbar : public juce::Component,
+                      private PresetManager::Listener
 {
 public:
     explicit HeaderToolbar ( AdvancedMBProcessor& processor );
@@ -33,7 +35,11 @@ public:
     std::function<void()> onHelpClicked;
 
 private:
+    void presetChanged() override;
+    void updatePresetName();
+
     AdvancedMBProcessor& processor;
+    PresetManager& presetManager;
 
     // Undo / Redo (Unicode icon buttons)
     juce::TextButton undoButton { juce::String::charToString ( 0x21A9 ) };
@@ -43,6 +49,7 @@ private:
     juce::TextButton prevButton { juce::String::charToString ( 0x25C0 ) };
     juce::TextButton nextButton { juce::String::charToString ( 0x25B6 ) };
     juce::TextButton presetNameButton { "Init" };
+    juce::TextButton saveButton { juce::String::charToString ( 0x2913 ) }; // downward arrow
 
     // A/B comparison
     juce::TextButton abButton { "A" };
@@ -55,6 +62,7 @@ private:
 
     void setupFlatButton ( juce::TextButton& button, const juce::String& componentID,
                            juce::Colour textColour );
+    void showSaveDialog();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( HeaderToolbar )
 };

@@ -198,42 +198,26 @@ void BandControlPanel::paint ( juce::Graphics& g )
 {
     auto bounds = getLocalBounds().toFloat();
 
-    // Drop shadow
-    g.setColour ( ColourPalette::screenShadow );
-    g.fillRoundedRectangle ( bounds.expanded ( 2.0f ), 6.0f );
-
-    // Panel background
+    // Flat panel gradient (matching BottomControlStrip style)
     g.setGradientFill ( juce::ColourGradient (
         ColourPalette::panelTop, 0.0f, bounds.getY(),
         ColourPalette::panelBottom, 0.0f, bounds.getBottom(),
         false ) );
-    g.fillRoundedRectangle ( bounds, 4.0f );
+    g.fillRect ( bounds );
 
-    // Bevel highlight
+    // Top bevel line pair
     g.setColour ( ColourPalette::bevelLight );
-    g.drawRoundedRectangle ( bounds.reduced ( 0.5f ), 4.0f, 1.0f );
+    g.drawLine ( 0.0f, bounds.getY() + 0.5f, bounds.getRight(), bounds.getY() + 0.5f, 1.0f );
+    g.setColour ( ColourPalette::bevelDark );
+    g.drawLine ( 0.0f, bounds.getY() + 1.5f, bounds.getRight(), bounds.getY() + 1.5f, 1.0f );
 
-    // Coloured header bar
-    const float headerH = 28.0f;
-    auto headerBounds = bounds.removeFromTop ( headerH );
-
+    // Band colour indicator line at very top (3px)
     juce::Colour bandCol = ( selectedBand >= 0 && selectedBand < Constants::kMaxBands )
                                ? bandColours[selectedBand]
                                : ColourPalette::textDim;
 
-    g.setColour ( bandCol.withAlpha ( 0.25f ) );
-    g.fillRoundedRectangle ( headerBounds.getX(), headerBounds.getY(),
-                              headerBounds.getWidth(), headerH,
-                              4.0f );
-
-    // Bottom corners are not rounded - overlay a small rect to square them off
-    g.fillRect ( headerBounds.getX(), headerBounds.getY() + headerH - 4.0f,
-                 headerBounds.getWidth(), 4.0f );
-
-    // Band colour indicator line at very top
     g.setColour ( bandCol );
-    g.fillRoundedRectangle ( headerBounds.getX(), headerBounds.getY(),
-                              headerBounds.getWidth(), 3.0f, 4.0f );
+    g.fillRect ( bounds.getX(), bounds.getY(), bounds.getWidth(), 3.0f );
 }
 
 //==============================================================================
@@ -244,47 +228,47 @@ void BandControlPanel::resized()
 {
     auto bounds = getLocalBounds();
 
-    // Header row (28px) ===================================================
-    const int headerH = 28;
-    auto headerRow = bounds.removeFromTop ( headerH );
-    headerRow.reduce ( 6, 2 );
+    // Band colour bar is purely painted (3px), skip it in layout
+    bounds.removeFromTop ( 3 );
 
-    bandLabel.setBounds ( headerRow.removeFromLeft ( 60 ) );
-    closeButton.setBounds ( headerRow.removeFromRight ( 28 ) );
-    auditionButton.setBounds ( headerRow.removeFromRight ( 50 ) );
-    headerRow.removeFromRight ( 4 );
-    enableButton.setBounds ( headerRow.removeFromRight ( 36 ) );
-    headerRow.removeFromRight ( 4 );
-    modeButton.setBounds ( headerRow.removeFromRight ( 60 ) );
+    // Left section (~200px): band label + buttons
+    auto leftSection = bounds.removeFromLeft ( 200 );
+    leftSection.reduce ( 8, 4 );
 
-    // Knob area -----------------------------------------------------------
+    // Top row of left section: Band label + close
+    auto leftTopRow = leftSection.removeFromTop ( 24 );
+    bandLabel.setBounds ( leftTopRow.removeFromLeft ( 70 ) );
+    closeButton.setBounds ( leftTopRow.removeFromRight ( 28 ) );
+
+    // Bottom row of left section: mode, enable, audition
+    leftSection.removeFromTop ( 4 );
+    auto leftBtnRow = leftSection.removeFromTop ( 24 );
+    modeButton.setBounds ( leftBtnRow.removeFromLeft ( 60 ) );
+    leftBtnRow.removeFromLeft ( 4 );
+    enableButton.setBounds ( leftBtnRow.removeFromLeft ( 36 ) );
+    leftBtnRow.removeFromLeft ( 4 );
+    auditionButton.setBounds ( leftBtnRow.removeFromLeft ( 50 ) );
+
+    // Right section: all 9 knobs in a single horizontal row
     auto knobArea = bounds.reduced ( 4, 2 );
-
-    const int knobW = 80;
-    const int knobH = 60;
+    const int numKnobs = 9;
+    int knobW = knobArea.getWidth() / numKnobs;
     const int labelH = 14;
 
-    // Row 1 (5 knobs): Threshold, Range, Attack, Release, Output
-    auto row1 = knobArea.removeFromTop ( knobH + labelH );
-    auto placeKnob = [&] ( juce::Slider& knob, juce::Label& label, juce::Rectangle<int>& row )
+    auto placeKnob = [&] ( juce::Slider& knob, juce::Label& label )
     {
-        auto cell = row.removeFromLeft ( knobW );
+        auto cell = knobArea.removeFromLeft ( knobW );
         label.setBounds ( cell.removeFromTop ( labelH ) );
         knob.setBounds ( cell );
     };
 
-    placeKnob ( thresholdKnob,  thresholdLabel,  row1 );
-    placeKnob ( rangeKnob,      rangeLabel,      row1 );
-    placeKnob ( attackKnob,     attackLabel,     row1 );
-    placeKnob ( releaseKnob,    releaseLabel,    row1 );
-    placeKnob ( outputKnob,     outputLabel,     row1 );
-
-    // Row 2 (4 knobs): Ratio, Knee, Lookahead, Stereo Link
-    knobArea.removeFromTop ( 2 );
-    auto row2 = knobArea.removeFromTop ( knobH + labelH );
-
-    placeKnob ( ratioKnob,      ratioLabel,      row2 );
-    placeKnob ( kneeKnob,       kneeLabel,       row2 );
-    placeKnob ( lookaheadKnob,  lookaheadLabel,  row2 );
-    placeKnob ( stereoLinkKnob, stereoLinkLabel, row2 );
+    placeKnob ( thresholdKnob,  thresholdLabel );
+    placeKnob ( rangeKnob,      rangeLabel );
+    placeKnob ( attackKnob,     attackLabel );
+    placeKnob ( releaseKnob,    releaseLabel );
+    placeKnob ( outputKnob,     outputLabel );
+    placeKnob ( ratioKnob,      ratioLabel );
+    placeKnob ( kneeKnob,       kneeLabel );
+    placeKnob ( lookaheadKnob,  lookaheadLabel );
+    placeKnob ( stereoLinkKnob, stereoLinkLabel );
 }
