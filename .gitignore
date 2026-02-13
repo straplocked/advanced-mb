@@ -1,0 +1,30 @@
+# Build
+build/
+cmake-build-*/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+.idea/
+*.sln
+*.vcxproj*
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Local settings
+settings.local.json
+
+# Claude Code
+.claude/
+
+# JUCE build artifacts
+Builds/
+JuceLibraryCode/

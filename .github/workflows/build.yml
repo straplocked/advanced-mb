@@ -1,0 +1,84 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: cmake -B build
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-plugins
+          path: |
+            build/AdvancedMB_artefacts/**/*.app
+            build/AdvancedMB_artefacts/**/*.vst3
+            build/AdvancedMB_artefacts/**/*.component
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: cmake -B build -G "Visual Studio 17 2022"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-plugins
+          path: |
+            build/AdvancedMB_artefacts/**/*.exe
+            build/AdvancedMB_artefacts/**/*.vst3
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          libasound2-dev
+          libfreetype6-dev
+          libx11-dev
+          libxrandr-dev
+          libxcursor-dev
+          libxinerama-dev
+          libgl1-mesa-dev
+          libxcomposite-dev
+
+      - name: Configure
+        run: cmake -B build
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-plugins
+          path: |
+            build/AdvancedMB_artefacts/**/*Standalone*
+            build/AdvancedMB_artefacts/**/*.vst3
