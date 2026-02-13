@@ -23,6 +23,7 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     setLookAndFeel ( &lookAndFeel );
 
     multibandDisplay.setProcessor ( &p );
+    multibandDisplay.setBandManager ( &p.getBandManager() );
 
     addAndMakeVisible ( headerToolbar );
     addAndMakeVisible ( multibandDisplay );
@@ -39,11 +40,33 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     addChildComponent ( helpOverlay );
 
     // When a band is clicked in the display, show its controls
-    multibandDisplay.onBandSelected = [this] ( int bandIndex )
+    multibandDisplay.onBandSelected = [this] ( int bandPosition )
     {
-        bandControlPanel.setSelectedBand ( bandIndex );
-        bandControlPanel.setVisible ( true );
-        resized();
+        auto& bm = processor.getBandManager();
+        const auto& bands = bm.getActiveBands();
+        if ( bandPosition >= 0 && bandPosition < static_cast<int> ( bands.size() ) )
+        {
+            int slot = bands[bandPosition].slotIndex;
+            bandControlPanel.setSelectedPosition ( bandPosition );
+            bandControlPanel.setSelectedBand ( slot );
+            bandControlPanel.setVisible ( true );
+            resized();
+        }
+    };
+
+    // When a new band is created by clicking empty space
+    multibandDisplay.onBandCreated = [this] ( int bandPosition )
+    {
+        auto& bm = processor.getBandManager();
+        const auto& bands = bm.getActiveBands();
+        if ( bandPosition >= 0 && bandPosition < static_cast<int> ( bands.size() ) )
+        {
+            int slot = bands[bandPosition].slotIndex;
+            bandControlPanel.setSelectedPosition ( bandPosition );
+            bandControlPanel.setSelectedBand ( slot );
+            bandControlPanel.setVisible ( true );
+            resized();
+        }
     };
 
     // When the same band is clicked again, deselect it
@@ -57,6 +80,16 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     bandControlPanel.onClose = [this]
     {
         bandControlPanel.setVisible ( false );
+        multibandDisplay.setSelectedBand ( -1 );
+        resized();
+    };
+
+    // When the delete button is clicked on the band control panel
+    bandControlPanel.onDeleteBand = [this] ( int bandPosition )
+    {
+        processor.getBandManager().removeBand ( bandPosition );
+        bandControlPanel.setVisible ( false );
+        bandControlPanel.setSelectedBand ( -1 );
         multibandDisplay.setSelectedBand ( -1 );
         resized();
     };
