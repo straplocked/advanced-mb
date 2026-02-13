@@ -8,6 +8,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "ParameterIDs.h"
 #include "../dsp/MultibandEngine.h"
+#include "../dsp/BandManager.h"
 #include "../utils/Constants.h"
 #include <array>
 #include <atomic>
@@ -16,6 +17,8 @@ class MultibandParameterAttachment
 {
 public:
     MultibandParameterAttachment() = default;
+
+    void setBandManager (BandManager* bm) { bandManager = bm; }
 
     void init(juce::AudioProcessorValueTreeState& apvts)
     {
@@ -64,12 +67,23 @@ public:
     {
         MultibandParameters p;
 
-        p.numBands = (int)numBands->load();
         p.processMode = (int)processMode->load();
         p.oversampleIndex = (int)oversample->load();
         p.analyzerMode = (int)analyzerMode->load();
         p.globalOutput = globalOutput->load();
         p.mix = mix->load();
+
+        // Populate band count and slot order from BandManager
+        if (bandManager != nullptr)
+        {
+            p.numBands = bandManager->getNumActiveBands();
+            for (int i = 0; i < Constants::kMaxBands; ++i)
+                p.slotOrder[i] = bandManager->getSlotForPosition (i);
+        }
+        else
+        {
+            p.numBands = (int)numBands->load();
+        }
 
         for (int i = 0; i < Constants::kMaxCrossovers; ++i)
         {
@@ -107,6 +121,9 @@ private:
     std::atomic<float>* mix = nullptr;
     std::atomic<float>* numBands = nullptr;
     std::atomic<float>* midiLearn = nullptr;
+
+    // Band manager (optional, set by processor)
+    BandManager* bandManager = nullptr;
 
     // Crossovers
     std::array<std::atomic<float>*, Constants::kMaxCrossovers> crossoverFreq = {};
