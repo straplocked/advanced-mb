@@ -36,7 +36,7 @@ void CrossoverFilterBank::reset()
 
 void CrossoverFilterBank::setNumBands(int n)
 {
-    numBands = std::clamp(n, 1, Constants::kMaxBands);
+    numBands = std::clamp(n, 0, Constants::kMaxBands);
 }
 
 void CrossoverFilterBank::setCrossoverFrequency(int index, float hz)
@@ -85,8 +85,11 @@ void CrossoverFilterBank::process(const juce::AudioBuffer<float>& input,
     // If only 1 band, pass through directly
     if (numBands <= 1)
     {
-        for (int ch = 0; ch < numChannels; ++ch)
-            bandOutputs[0].copyFrom(ch, 0, input, ch, 0, numSamples);
+        if (numBands == 1)
+        {
+            for (int ch = 0; ch < numChannels; ++ch)
+                bandOutputs[0].copyFrom(ch, 0, input, ch, 0, numSamples);
+        }
         return;
     }
 

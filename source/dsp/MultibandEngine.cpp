@@ -51,13 +51,17 @@ void MultibandEngine::reset()
 
 void MultibandEngine::updateParameters(const MultibandParameters& params)
 {
-    numBands = std::clamp(params.numBands, 1, Constants::kMaxBands);
+    numBands = std::clamp(params.numBands, 0, Constants::kMaxBands);
 
     globalOutputGain = MathUtils::dbToLinear(params.globalOutput);
-    mixAmount = std::clamp(params.mix, 0.0f, 200.0f) * 0.01f; // 0.0 to 2.0
+    mixAmount = std::clamp(params.mix, 0.0f, 200.0f) * 0.01f;
 
-    // Update crossover bank
-    crossoverBank.setNumBands(numBands);
+    // Store slot mapping
+    for (int i = 0; i < Constants::kMaxBands; ++i)
+        currentSlotOrder[i] = params.slotOrder[i];
+
+    // Update crossover bank (min 1 for the bank's internal logic)
+    crossoverBank.setNumBands(std::max(numBands, 1));
 
     for (int i = 0; i < Constants::kMaxCrossovers; ++i)
     {
@@ -65,11 +69,13 @@ void MultibandEngine::updateParameters(const MultibandParameters& params)
         crossoverBank.setCrossoverSlope(i, params.crossovers[i].slope);
     }
 
-    // Update band compressors
-    for (int b = 0; b < Constants::kMaxBands; ++b)
-        bandCompressors[b].updateParameters(params.bands[b]);
+    // Update band compressors using slot mapping
+    for (int pos = 0; pos < numBands; ++pos)
+    {
+        int slot = currentSlotOrder[pos];
+        bandCompressors[slot].updateParameters(params.bands[slot]);
+    }
 
-    // Update oversampler factor
     oversampler.setFactor(params.oversampleIndex);
 }
 
@@ -78,6 +84,10 @@ void MultibandEngine::process(juce::AudioBuffer<float>& buffer)
     const int numSamples = buffer.getNumSamples();
     const int numChannels = std::min(buffer.getNumChannels(), currentChannels);
 
+    // 0 bands = pass through (no processing)
+    if (numBands <= 0)
+        return;
+
     // 1. Store dry copy for dry/wet mixing
     for (int ch = 0; ch < numChannels; ++ch)
         dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
@@ -85,35 +95,32 @@ void MultibandEngine::process(juce::AudioBuffer<float>& buffer)
     // 2. Split via crossover bank into band buffers
     crossoverBank.process(buffer, bandBuffers);
 
-    // 3. Process each active band through its BandCompressorCore
-    for (int b = 0; b < numBands; ++b)
-        bandCompressors[b].process(bandBuffers[b]);
+    // 3. Process each active band using slot mapping
+    for (int pos = 0; pos < numBands; ++pos)
+    {
+        int slot = currentSlotOrder[pos];
+        bandCompressors[slot].process(bandBuffers[pos]);
+    }
 
     // 4. Sum all band outputs back into the main buffer
     buffer.clear();
-    for (int b = 0; b < numBands; ++b)
+    for (int pos = 0; pos < numBands; ++pos)
     {
         for (int ch = 0; ch < numChannels; ++ch)
         {
             buffer.addFrom(ch, 0,
-                           bandBuffers[b].getReadPointer(ch),
+                           bandBuffers[pos].getReadPointer(ch),
                            numSamples);
         }
     }
 
     // 5. Apply dry/wet mix
-    //    output = dry * (1 - mix) + wet * mix
-    //    When mix = 1.0 (100%), fully wet
-    //    When mix = 0.0 (0%), fully dry
-    //    mix > 1.0 allows over-processing
-    if (mixAmount < 1.999f) // Not fully wet (with margin)
+    if (mixAmount < 1.999f)
     {
         float dryAmount = 1.0f - mixAmount;
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            // Scale wet signal
             buffer.applyGain(ch, 0, numSamples, mixAmount);
-            // Add dry signal
             buffer.addFrom(ch, 0, dryBuffer.getReadPointer(ch), numSamples, dryAmount);
         }
     }

@@ -14,12 +14,13 @@
 
 struct MultibandParameters
 {
-    int numBands = 1;
+    int numBands = 0;
     int processMode = 0; // 0=dynamic, 1=linear, 2=minimum
     int oversampleIndex = 0;
     int analyzerMode = 0;
     float globalOutput = 0.0f;
     float mix = 100.0f;
+    std::array<int, Constants::kMaxBands> slotOrder = {0, 1, 2, 3, 4, 5};
 
     struct CrossoverParams {
         float frequency = 1000.0f;
@@ -54,7 +55,8 @@ private:
     std::array<juce::AudioBuffer<float>, Constants::kMaxBands> bandBuffers;
     juce::AudioBuffer<float> dryBuffer;
 
-    int numBands = 1;
+    int numBands = 0;
+    std::array<int, Constants::kMaxBands> currentSlotOrder = {0, 1, 2, 3, 4, 5};
     float globalOutputGain = 1.0f;
     float mixAmount = 1.0f;
 
