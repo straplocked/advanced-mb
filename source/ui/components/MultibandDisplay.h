@@ -15,6 +15,7 @@
 #include "../LookAndFeel/ColourPalette.h"
 #include "../../utils/Constants.h"
 #include "../../utils/MathUtils.h"
+#include "../../dsp/BandManager.h"
 #include <functional>
 
 class AdvancedMBProcessor;
@@ -63,6 +64,11 @@ public:
     /** Callback invoked when the already-selected band is clicked again (deselect). */
     std::function<void()> onBandDeselected;
 
+    /** Callback invoked when a new band is created by clicking empty space. */
+    std::function<void ( int )> onBandCreated;
+
+    void setBandManager ( BandManager* bm ) { bandManager = bm; }
+
 private:
     // Coordinate helpers --------------------------------------------------
     float frequencyToX ( float freq ) const;
@@ -89,6 +95,7 @@ private:
 
     // Data ----------------------------------------------------------------
     AdvancedMBProcessor* processor = nullptr;
+    BandManager* bandManager = nullptr;
     int selectedBand = -1;
     int draggingCrossover = -1;     // -1 = not dragging
     int draggingThresholdBand = -1; // -1 = not dragging

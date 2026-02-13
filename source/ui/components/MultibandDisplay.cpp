@@ -214,33 +214,23 @@ void MultibandDisplay::drawSpectrum ( juce::Graphics& g )
 
 void MultibandDisplay::drawBandRegions ( juce::Graphics& g )
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return;
 
-    auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numBands = params.numBands;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
 
     if ( numBands < 1 )
         return;
 
-    const float w = static_cast<float> ( getWidth() );
     const float h = static_cast<float> ( getHeight() );
-
-    // Collect crossover x positions
-    std::vector<float> xPositions;
-    xPositions.push_back ( 0.0f );
-
-    for ( int i = 0; i < numBands - 1; ++i )
-        xPositions.push_back ( frequencyToX ( params.crossovers[i].frequency ) );
-
-    xPositions.push_back ( w );
 
     for ( int b = 0; b < numBands; ++b )
     {
-        float x0 = xPositions[static_cast<size_t> ( b )];
-        float x1 = xPositions[static_cast<size_t> ( b + 1 )];
+        float x0 = frequencyToX ( bands[static_cast<size_t> ( b )].leftFreqHz );
+        float x1 = frequencyToX ( bands[static_cast<size_t> ( b )].rightFreqHz );
 
-        juce::Colour fill = bandFillColours[b % Constants::kMaxBands];
+        juce::Colour fill = bandFillColours[bands[static_cast<size_t> ( b )].slotIndex % Constants::kMaxBands];
 
         if ( b == selectedBand )
             fill = fill.brighter ( 0.3f );
@@ -256,37 +246,29 @@ void MultibandDisplay::drawBandRegions ( juce::Graphics& g )
 
 void MultibandDisplay::drawGainReduction ( juce::Graphics& g )
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return;
 
-    auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numBands = params.numBands;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
 
     if ( numBands < 1 )
         return;
 
-    const float w = static_cast<float> ( getWidth() );
-    const float h = static_cast<float> ( getHeight() );
     const float zeroY = dbToY ( 0.0f );
-
-    std::vector<float> xPositions;
-    xPositions.push_back ( 0.0f );
-
-    for ( int i = 0; i < numBands - 1; ++i )
-        xPositions.push_back ( frequencyToX ( params.crossovers[i].frequency ) );
-
-    xPositions.push_back ( w );
 
     for ( int b = 0; b < numBands; ++b )
     {
-        float grDB = processor->getBandGainReduction ( b ); // negative value in dB
+        int slot = bands[static_cast<size_t> ( b )].slotIndex;
+        float grDB = processor->getBandGainReduction ( slot ); // negative value in dB
+
         if ( std::abs ( grDB ) < 0.1f )
             continue;
 
         float grY = dbToY ( grDB );
 
-        float x0 = xPositions[static_cast<size_t> ( b )];
-        float x1 = xPositions[static_cast<size_t> ( b + 1 )];
+        float x0 = frequencyToX ( bands[static_cast<size_t> ( b )].leftFreqHz );
+        float x1 = frequencyToX ( bands[static_cast<size_t> ( b )].rightFreqHz );
         float centerX = ( x0 + x1 ) * 0.5f;
         float barWidth = juce::jmin ( ( x1 - x0 ) * 0.5f, 40.0f );
 
@@ -308,17 +290,18 @@ void MultibandDisplay::drawGainReduction ( juce::Graphics& g )
 
 void MultibandDisplay::drawCrossovers ( juce::Graphics& g )
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return;
 
-    auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numCrossovers = params.numBands - 1;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
+    int numCrossovers = numBands - 1;
 
     const float h = static_cast<float> ( getHeight() );
 
     for ( int i = 0; i < numCrossovers; ++i )
     {
-        float x = frequencyToX ( params.crossovers[i].frequency );
+        float x = frequencyToX ( bands[static_cast<size_t> ( i )].rightFreqHz );
 
         // Dashed vertical line
         g.setColour ( ColourPalette::crossoverLine );
@@ -373,33 +356,26 @@ void MultibandDisplay::drawCrossovers ( juce::Graphics& g )
 
 void MultibandDisplay::drawThresholds ( juce::Graphics& g )
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return;
 
     auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numBands = params.numBands;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
 
     if ( numBands < 1 )
         return;
 
-    const float w = static_cast<float> ( getWidth() );
-
-    std::vector<float> xPositions;
-    xPositions.push_back ( 0.0f );
-
-    for ( int i = 0; i < numBands - 1; ++i )
-        xPositions.push_back ( frequencyToX ( params.crossovers[i].frequency ) );
-
-    xPositions.push_back ( w );
-
     for ( int b = 0; b < numBands; ++b )
     {
-        if ( ! params.bands[b].enabled )
+        int slot = bands[static_cast<size_t> ( b )].slotIndex;
+
+        if ( ! params.bands[slot].enabled )
             continue;
 
-        float threshY = dbToY ( params.bands[b].threshold );
-        float x0 = xPositions[static_cast<size_t> ( b )];
-        float x1 = xPositions[static_cast<size_t> ( b + 1 )];
+        float threshY = dbToY ( params.bands[slot].threshold );
+        float x0 = frequencyToX ( bands[static_cast<size_t> ( b )].leftFreqHz );
+        float x1 = frequencyToX ( bands[static_cast<size_t> ( b )].rightFreqHz );
 
         g.setColour ( ( b == selectedBand ) ? ColourPalette::thresholdAccent
                                             : ColourPalette::thresholdLine );
@@ -450,15 +426,16 @@ void MultibandDisplay::drawAxisLabels ( juce::Graphics& g )
 
 int MultibandDisplay::crossoverHandleAtPoint ( juce::Point<float> point ) const
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return -1;
 
-    auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numCrossovers = params.numBands - 1;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
+    int numCrossovers = numBands - 1;
 
     for ( int i = 0; i < numCrossovers; ++i )
     {
-        float cx = frequencyToX ( params.crossovers[i].frequency );
+        float cx = frequencyToX ( bands[static_cast<size_t> ( i )].rightFreqHz );
         float cy = kHandleRadius * 0.5f + kHandleRadius; // centre of handle circle
 
         float dx = point.x - cx;
@@ -473,38 +450,32 @@ int MultibandDisplay::crossoverHandleAtPoint ( juce::Point<float> point ) const
 
 int MultibandDisplay::thresholdAtPoint ( juce::Point<float> point ) const
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return -1;
 
     auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numBands = params.numBands;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
 
     if ( numBands < 1 )
         return -1;
 
-    const float w = static_cast<float> ( getWidth() );
     constexpr float hitTolerance = 8.0f;
-
-    std::vector<float> xPositions;
-    xPositions.push_back ( 0.0f );
-
-    for ( int i = 0; i < numBands - 1; ++i )
-        xPositions.push_back ( frequencyToX ( params.crossovers[i].frequency ) );
-
-    xPositions.push_back ( w );
 
     for ( int b = 0; b < numBands; ++b )
     {
-        if ( ! params.bands[b].enabled )
+        int slot = bands[static_cast<size_t> ( b )].slotIndex;
+
+        if ( ! params.bands[slot].enabled )
             continue;
 
-        float x0 = xPositions[static_cast<size_t> ( b )];
-        float x1 = xPositions[static_cast<size_t> ( b + 1 )];
+        float x0 = frequencyToX ( bands[static_cast<size_t> ( b )].leftFreqHz );
+        float x1 = frequencyToX ( bands[static_cast<size_t> ( b )].rightFreqHz );
 
         if ( point.x < x0 || point.x > x1 )
             continue;
 
-        float threshY = dbToY ( params.bands[b].threshold );
+        float threshY = dbToY ( params.bands[slot].threshold );
 
         if ( std::abs ( point.y - threshY ) < hitTolerance )
             return b;
@@ -515,29 +486,21 @@ int MultibandDisplay::thresholdAtPoint ( juce::Point<float> point ) const
 
 int MultibandDisplay::bandAtX ( float x ) const
 {
-    if ( processor == nullptr )
+    if ( processor == nullptr || bandManager == nullptr )
         return -1;
 
-    auto params = processor->getParameterAttachment().getCurrentParameters();
-    int numBands = params.numBands;
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
 
     if ( numBands < 1 )
         return -1;
 
-    const float w = static_cast<float> ( getWidth() );
-
-    std::vector<float> xPositions;
-    xPositions.push_back ( 0.0f );
-
-    for ( int i = 0; i < numBands - 1; ++i )
-        xPositions.push_back ( frequencyToX ( params.crossovers[i].frequency ) );
-
-    xPositions.push_back ( w );
-
     for ( int b = 0; b < numBands; ++b )
     {
-        if ( x >= xPositions[static_cast<size_t> ( b )]
-             && x < xPositions[static_cast<size_t> ( b + 1 )] )
+        float bx0 = frequencyToX ( bands[static_cast<size_t> ( b )].leftFreqHz );
+        float bx1 = frequencyToX ( bands[static_cast<size_t> ( b )].rightFreqHz );
+
+        if ( x >= bx0 && x < bx1 )
             return b;
     }
 
@@ -639,6 +602,35 @@ void MultibandDisplay::mouseDown ( const juce::MouseEvent& e )
 
         if ( onBandSelected )
             onBandSelected ( selectedBand );
+
+        return;
+    }
+
+    // Click on empty space: create a new band
+    if ( bandManager != nullptr )
+    {
+        float clickFreq = xToFrequency ( pos.x );
+        int newSlot = bandManager->addBand ( clickFreq );
+
+        if ( newSlot >= 0 )
+        {
+            const auto& bands = bandManager->getActiveBands();
+
+            for ( int i = 0; i < static_cast<int> ( bands.size() ); ++i )
+            {
+                if ( bands[static_cast<size_t> ( i )].slotIndex == newSlot )
+                {
+                    selectedBand = i;
+
+                    if ( onBandCreated )
+                        onBandCreated ( i );
+
+                    break;
+                }
+            }
+
+            repaint();
+        }
     }
 }
 
@@ -659,6 +651,20 @@ void MultibandDisplay::mouseDrag ( const juce::MouseEvent& e )
         if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
             param->setValueNotifyingHost ( param->convertTo0to1 ( newFreq ) );
 
+        // Update band boundaries in BandManager
+        if ( bandManager != nullptr )
+        {
+            auto& bands = const_cast<std::vector<Band>&> ( bandManager->getActiveBands() );
+
+            if ( draggingCrossover < static_cast<int> ( bands.size() ) )
+            {
+                bands[static_cast<size_t> ( draggingCrossover )].rightFreqHz = newFreq;
+
+                if ( draggingCrossover + 1 < static_cast<int> ( bands.size() ) )
+                    bands[static_cast<size_t> ( draggingCrossover + 1 )].leftFreqHz = newFreq;
+            }
+        }
+
         tooltipFreq = newFreq;
         tooltipX = e.position.x;
         tooltipY = e.position.y;
@@ -674,8 +680,18 @@ void MultibandDisplay::mouseDrag ( const juce::MouseEvent& e )
         float newDB = yToDb ( e.position.y );
         newDB = juce::jlimit ( Constants::kMinThreshold, Constants::kMaxThreshold, newDB );
 
+        int slot = draggingThresholdBand;
+
+        if ( bandManager != nullptr )
+        {
+            const auto& bands = bandManager->getActiveBands();
+
+            if ( draggingThresholdBand < static_cast<int> ( bands.size() ) )
+                slot = bands[static_cast<size_t> ( draggingThresholdBand )].slotIndex;
+        }
+
         juce::String paramID = ParameterIDs::bandParam (
-            draggingThresholdBand, ParameterIDs::Band::threshold );
+            slot, ParameterIDs::Band::threshold );
 
         if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
             param->setValueNotifyingHost ( param->convertTo0to1 ( newDB ) );
@@ -696,25 +712,35 @@ void MultibandDisplay::mouseUp ( const juce::MouseEvent& )
 // Context menu
 //==============================================================================
 
-void MultibandDisplay::showBandContextMenu ( int bandIndex )
+void MultibandDisplay::showBandContextMenu ( int bandPosition )
 {
     if ( processor == nullptr )
         return;
 
+    int slot = bandPosition;
+
+    if ( bandManager != nullptr )
+    {
+        const auto& bands = bandManager->getActiveBands();
+
+        if ( bandPosition < static_cast<int> ( bands.size() ) )
+            slot = bands[static_cast<size_t> ( bandPosition )].slotIndex;
+    }
+
     auto params = processor->getParameterAttachment().getCurrentParameters();
-    bool enabled   = params.bands[bandIndex].enabled;
+    bool enabled = params.bands[slot].enabled;
 
     juce::PopupMenu menu;
     menu.addItem ( 1, enabled ? "Disable Band" : "Enable Band" );
     menu.addItem ( 2, "Audition Band" );
 
     menu.showMenuAsync ( juce::PopupMenu::Options(),
-        [this, bandIndex] ( int result )
+        [this, slot] ( int result )
         {
             if ( result == 1 )
             {
                 juce::String paramID = ParameterIDs::bandParam (
-                    bandIndex, ParameterIDs::Band::enabled );
+                    slot, ParameterIDs::Band::enabled );
 
                 if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
                 {
@@ -725,7 +751,7 @@ void MultibandDisplay::showBandContextMenu ( int bandIndex )
             else if ( result == 2 )
             {
                 juce::String paramID = ParameterIDs::bandParam (
-                    bandIndex, ParameterIDs::Band::audition );
+                    slot, ParameterIDs::Band::audition );
 
                 if ( auto* param = processor->getAPVTS().getParameter ( paramID ) )
                 {
