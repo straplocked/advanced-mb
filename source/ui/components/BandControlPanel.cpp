@@ -45,6 +45,7 @@ BandControlPanel::BandControlPanel ( juce::AudioProcessorValueTreeState& vts )
     setupButton ( enableButton );
     setupButton ( modeButton );
     setupButton ( auditionButton );
+    setupButton ( deleteButton );
     setupButton ( closeButton );
 
     // Mode button cycles compress/expand on click
@@ -65,6 +66,13 @@ BandControlPanel::BandControlPanel ( juce::AudioProcessorValueTreeState& vts )
         // Update button text
         if ( auto* param = apvts.getRawParameterValue ( paramID ) )
             modeButton.setButtonText ( param->load() > 0.5f ? "EXPAND" : "COMP" );
+    };
+
+    // Delete band
+    deleteButton.onClick = [this]
+    {
+        if ( selectedPosition >= 0 && onDeleteBand )
+            onDeleteBand ( selectedPosition );
     };
 
     // Close
@@ -128,7 +136,9 @@ void BandControlPanel::setSelectedBand ( int bandIndex )
         return;
     }
 
-    bandLabel.setText ( "Band " + juce::String ( selectedBand + 1 ),
+    // Show position-based label if set, otherwise slot-based
+    int displayNum = ( selectedPosition >= 0 ) ? selectedPosition + 1 : selectedBand + 1;
+    bandLabel.setText ( "Band " + juce::String ( displayNum ),
                         juce::dontSendNotification );
 
     // Update mode button text
@@ -235,10 +245,12 @@ void BandControlPanel::resized()
     auto leftSection = bounds.removeFromLeft ( 200 );
     leftSection.reduce ( 8, 4 );
 
-    // Top row of left section: Band label + close
+    // Top row of left section: Band label + close + delete
     auto leftTopRow = leftSection.removeFromTop ( 24 );
     bandLabel.setBounds ( leftTopRow.removeFromLeft ( 70 ) );
     closeButton.setBounds ( leftTopRow.removeFromRight ( 28 ) );
+    deleteButton.setBounds ( leftTopRow.removeFromRight ( 36 ) );
+    leftTopRow.removeFromRight ( 4 );
 
     // Bottom row of left section: mode, enable, audition
     leftSection.removeFromTop ( 4 );

@@ -40,9 +40,13 @@ public:
     explicit BandControlPanel ( juce::AudioProcessorValueTreeState& apvts );
     ~BandControlPanel() override;
 
-    /** Select a band (0..N-1) to display, or -1 to hide the panel. */
+    /** Select a band (0..N-1) to display, or -1 to hide the panel.
+     *  bandIndex here is the APVTS slot index. */
     void setSelectedBand ( int bandIndex );
     int getSelectedBand() const { return selectedBand; }
+
+    /** Set the frequency-ordered position of the selected band (for delete callback). */
+    void setSelectedPosition ( int pos ) { selectedPosition = pos; }
 
     void paint ( juce::Graphics& g ) override;
     void resized() override;
@@ -50,12 +54,17 @@ public:
     /** Called when the user clicks the close button. */
     std::function<void()> onClose;
 
+    /** Called when the user clicks the delete button to remove a band.
+     *  Parameter is the frequency-ordered band position. */
+    std::function<void ( int )> onDeleteBand;
+
 private:
     void rebuildAttachments();
     void configureKnob ( juce::Slider& knob, juce::Label& label, const juce::String& text );
 
     juce::AudioProcessorValueTreeState& apvts;
     int selectedBand = -1;
+    int selectedPosition = -1;
 
     // =====================================================================
     // Knobs
@@ -75,6 +84,7 @@ private:
     juce::TextButton enableButton   { "ON" };
     juce::TextButton modeButton     { "COMP" };
     juce::TextButton auditionButton { "SOLO" };
+    juce::TextButton deleteButton   { "DEL" };
     juce::TextButton closeButton    { "X" };
     juce::Label      bandLabel;
 
