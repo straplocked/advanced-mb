@@ -89,49 +89,6 @@ BottomControlStrip::BottomControlStrip ( juce::AudioProcessorValueTreeState& vts
     mixAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, ParameterIDs::Global::mix, mixSlider );
 
-    // ========================= Band count =========================
-    bandsLabel.setText ( "Bands:", juce::dontSendNotification );
-    bandsLabel.setFont ( font );
-    bandsLabel.setColour ( juce::Label::textColourId, ColourPalette::textDim );
-    bandsLabel.setJustificationType ( juce::Justification::centredRight );
-    addAndMakeVisible ( bandsLabel );
-
-    bandsValueLabel.setJustificationType ( juce::Justification::centred );
-    bandsValueLabel.setFont ( Fonts::getBold ( 11.0f ) );
-    bandsValueLabel.setColour ( juce::Label::textColourId, ColourPalette::textBright );
-    addAndMakeVisible ( bandsValueLabel );
-
-    auto styleBtn = [] ( juce::TextButton& btn )
-    {
-        btn.setColour ( juce::TextButton::buttonColourId, juce::Colours::transparentBlack );
-        btn.setColour ( juce::TextButton::textColourOffId, ColourPalette::textDim );
-    };
-    styleBtn ( bandsMinusButton );
-    styleBtn ( bandsPlusButton );
-
-    bandsMinusButton.onClick = [this]
-    {
-        if ( auto* param = apvts.getParameter ( ParameterIDs::Global::numBands ) )
-        {
-            float current = param->convertFrom0to1 ( param->getValue() );
-            param->setValueNotifyingHost ( param->convertTo0to1 ( juce::jmax ( 1.0f, current - 1.0f ) ) );
-            updateBandsLabel();
-        }
-    };
-    bandsPlusButton.onClick = [this]
-    {
-        if ( auto* param = apvts.getParameter ( ParameterIDs::Global::numBands ) )
-        {
-            float current = param->convertFrom0to1 ( param->getValue() );
-            param->setValueNotifyingHost ( param->convertTo0to1 (
-                juce::jmin ( static_cast<float> ( Constants::kMaxBands ), current + 1.0f ) ) );
-            updateBandsLabel();
-        }
-    };
-    addAndMakeVisible ( bandsMinusButton );
-    addAndMakeVisible ( bandsPlusButton );
-
-    updateBandsLabel();
 }
 
 BottomControlStrip::~BottomControlStrip()
@@ -141,15 +98,6 @@ BottomControlStrip::~BottomControlStrip()
     processingModeAttach.reset();
     oversamplingAttach.reset();
     analyzerModeAttach.reset();
-}
-
-void BottomControlStrip::updateBandsLabel()
-{
-    if ( auto* param = apvts.getRawParameterValue ( ParameterIDs::Global::numBands ) )
-    {
-        int numBands = juce::roundToInt ( param->load() );
-        bandsValueLabel.setText ( juce::String ( numBands ), juce::dontSendNotification );
-    }
 }
 
 void BottomControlStrip::paint ( juce::Graphics& g )
@@ -191,8 +139,4 @@ void BottomControlStrip::resized()
     analyzerModeCombo.setBounds ( bounds.removeFromLeft ( 78 ).reduced ( 0, vPad ) );
     bounds.removeFromLeft ( 4 );
 
-    bandsLabel.setBounds ( bounds.removeFromLeft ( 42 ).reduced ( 0, vPad ) );
-    bandsMinusButton.setBounds ( bounds.removeFromLeft ( 20 ).reduced ( 0, 4 ) );
-    bandsValueLabel.setBounds ( bounds.removeFromLeft ( 18 ).reduced ( 0, vPad ) );
-    bandsPlusButton.setBounds ( bounds.removeFromLeft ( 20 ).reduced ( 0, 4 ) );
 }

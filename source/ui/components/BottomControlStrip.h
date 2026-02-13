@@ -21,7 +21,7 @@
  * @brief Compact global controls strip at the bottom of the editor.
  *
  * Single-row, 28px tall inline text strip inspired by FabFilter Pro-MB.
- * [Dynamic Phase] [Oversampling: Off] [Analyzer: Pre+Post] [Bands − 3 +] | [Mix 100%] [Output 0.0 dB]
+ * [Dynamic Phase] [Oversampling: Off] [Analyzer: Pre+Post] | [Mix 100%] [Output 0.0 dB]
  */
 class BottomControlStrip : public juce::Component
 {
@@ -50,20 +50,12 @@ private:
     juce::Slider globalOutputSlider;
     juce::Slider mixSlider;
 
-    // Band count control
-    juce::Label      bandsLabel;
-    juce::TextButton bandsMinusButton { "-" };
-    juce::Label      bandsValueLabel;
-    juce::TextButton bandsPlusButton  { "+" };
-
     // APVTS Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> processingModeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> oversamplingAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> analyzerModeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   globalOutputAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   mixAttach;
-
-    void updateBandsLabel();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( BottomControlStrip )
 };
