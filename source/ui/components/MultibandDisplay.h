@@ -23,20 +23,9 @@ class AdvancedMBProcessor;
 /**
  * @brief Central multiband visualization and interaction component.
  *
- * Draws (bottom to top):
- *   1. Dark background with frequency grid (50 Hz - 20 kHz log) and dB grid (-60 to +6 dB)
- *   2. Spectrum analyzer curves (pre/post FFT from processor)
- *   3. Band regions - coloured vertical regions between crossover frequencies (15% alpha fill)
- *   4. Gain reduction visualization per band
- *   5. Crossover lines - dashed vertical lines at crossover frequencies
- *   6. Crossover handles - draggable circles at top of crossover lines
- *   7. Threshold handles - per-band horizontal lines showing threshold level
- *   8. Frequency / dB axis labels
- *
- * Interactions:
- *   - Drag crossover handle left/right to move crossover frequency
- *   - Click band region to select band (triggers BandControlPanel)
- *   - Right-click band region for context menu (enable/disable, audition)
+ * Supports gap-aware rendering: bands can have gaps between them where
+ * audio passes through unprocessed. Hovering over a gap shows a preview
+ * of where a new band would be created.
  */
 class MultibandDisplay : public juce::Component,
                          public juce::Timer
@@ -81,41 +70,83 @@ private:
     void drawGrid ( juce::Graphics& g );
     void drawSpectrum ( juce::Graphics& g );
     void drawBandRegions ( juce::Graphics& g );
-    void drawGainReduction ( juce::Graphics& g );
+    void drawRangeRegions ( juce::Graphics& g );
+    void drawOutputCurve ( juce::Graphics& g );
     void drawCrossovers ( juce::Graphics& g );
-    void drawThresholds ( juce::Graphics& g );
+    void drawBandControlDots ( juce::Graphics& g );
+    void drawBandButtons ( juce::Graphics& g );
+    void drawHoverPreview ( juce::Graphics& g );
     void drawAxisLabels ( juce::Graphics& g );
 
     // Hit-testing helpers -------------------------------------------------
     int crossoverHandleAtPoint ( juce::Point<float> point ) const;
-    int thresholdAtPoint ( juce::Point<float> point ) const;
+    int controlDotAtPoint ( juce::Point<float> point ) const;
+    int rangeBoundaryAtPoint ( juce::Point<float> point ) const;
+    int smButtonAtPoint ( juce::Point<float> point, bool& isSolo ) const;
+
+    /** Get the output curve dB and range boundary dB at a band's centre. */
+    void getBandCurveValues ( int bandPos, float& outputCurveDB, float& rangeBoundaryDB ) const;
     int bandAtX ( float x ) const;
     void showBandContextMenu ( int bandIndex );
     void updateCursor();
+    void updateDisplayRange();
+
+    /** Get the S/M button rectangles for a band. */
+    void getBandButtonRects ( int bandPos, juce::Rectangle<float>& soloRect,
+                              juce::Rectangle<float>& muteRect ) const;
+
+    /** Get the control dot center for a band. */
+    juce::Point<float> getControlDotCenter ( int bandPos ) const;
+
+    /** Find the gap boundaries at the given X position.
+        Returns false if the position is inside a user band. */
+    bool getGapAtX ( float x, float& gapLeftHz, float& gapRightHz ) const;
+
+    /** Compute proposed band boundaries centered on freq, clamped to gap. */
+    void computeHoverBand ( float freq, float gapLeftHz, float gapRightHz,
+                            float& bandLeftHz, float& bandRightHz ) const;
 
     // Data ----------------------------------------------------------------
     AdvancedMBProcessor* processor = nullptr;
     BandManager* bandManager = nullptr;
     int selectedBand = -1;
     int draggingCrossover = -1;     // -1 = not dragging
-    int draggingThresholdBand = -1; // -1 = not dragging
+    int draggingControlDot = -1;    // -1 = not dragging a control dot
+    int draggingRangeBand = -1;     // -1 = not dragging a range boundary
+    bool draggingLeftEdge = false;  // true = dragging left edge, false = right
 
     // Hover state
     int hoveredBand = -1;
     int hoveredCrossover = -1;
-    int hoveredThreshold = -1;
+    int hoveredControlDot = -1;
+    int hoveredRange = -1;
 
-    // Crossover drag tooltip
+    // Hover preview for band creation
+    bool showingHoverPreview = false;
+    float hoverFreq = 0.0f;
+    float hoverLeftFreq = 0.0f;
+    float hoverRightFreq = 0.0f;
+
+    // Drag tooltip (shared between crossover drag and range drag)
     bool showingFreqTooltip = false;
     float tooltipFreq = 0.0f;
+    bool showingRangeTooltip = false;
+    juce::String rangeTooltipText;
     float tooltipX = 0.0f;
     float tooltipY = 0.0f;
 
-    float minDB = -60.0f;
-    float maxDB = 6.0f;
+    float minDB = -36.0f;
+    float maxDB = 36.0f;
+    float targetMinDB = -36.0f;
+    float targetMaxDB = 36.0f;
 
-    static constexpr float kHandleRadius = 8.0f;
     static constexpr float kHandleHitRadius = 12.0f;
+    static constexpr float kControlDotRadius = 7.0f;
+    static constexpr float kControlDotHitRadius = 12.0f;
+    static constexpr float kButtonWidth = 16.0f;
+    static constexpr float kButtonHeight = 14.0f;
+    static constexpr float kButtonSpacing = 2.0f;
+    static constexpr float kButtonTopMargin = 4.0f;
 
     // Band colour look-up tables (indexed by band) -----------------------
     static inline const juce::Colour bandColours[Constants::kMaxBands] =

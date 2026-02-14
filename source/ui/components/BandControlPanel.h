@@ -84,7 +84,7 @@ private:
     juce::TextButton enableButton   { "ON" };
     juce::TextButton modeButton     { "COMP" };
     juce::TextButton auditionButton { "SOLO" };
-    juce::TextButton deleteButton   { "DEL" };
+    juce::TextButton deleteButton   { "DELETE" };
     juce::TextButton closeButton    { "X" };
     juce::Label      bandLabel;
 

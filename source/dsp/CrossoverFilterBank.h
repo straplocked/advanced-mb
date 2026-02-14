@@ -21,9 +21,9 @@ public:
     void setCrossoverFrequency(int index, float hz);
     void setCrossoverSlope(int index, int slopeIndex);
 
-    // Split input into band outputs
+    // Split input into region outputs (up to kMaxRegions)
     void process(const juce::AudioBuffer<float>& input,
-                 std::array<juce::AudioBuffer<float>, Constants::kMaxBands>& bandOutputs);
+                 std::array<juce::AudioBuffer<float>, Constants::kMaxRegions>& bandOutputs);
 
     int getNumBands() const { return numBands; }
     float getCrossoverFrequency(int index) const;
@@ -34,9 +34,9 @@ private:
     int channels = 2;
     double sampleRate = 44100.0;
 
-    // Per-channel crossover filters
-    std::array<std::array<LinkwitzRileyFilter, Constants::kMaxCrossovers>, 2> crossovers;
+    // Per-channel crossover filters (sized for region crossovers)
+    std::array<std::array<LinkwitzRileyFilter, Constants::kMaxRegionCrossovers>, 2> crossovers;
 
     // Temp buffers for cascaded splitting
-    std::array<juce::AudioBuffer<float>, Constants::kMaxBands> tempBuffers;
+    std::array<juce::AudioBuffer<float>, Constants::kMaxRegions> tempBuffers;
 };

@@ -19,3 +19,17 @@ struct Band
 
     bool isValid() const { return slotIndex >= 0 && slotIndex < Constants::kMaxBands; }
 };
+
+/**
+ * A contiguous frequency range in the region-based processing model.
+ * slotIndex >= 0 → user band (processed by BandCompressorCore[slotIndex])
+ * slotIndex == -1 → gap (audio passes through unprocessed)
+ */
+struct Region
+{
+    float leftFreqHz  = Constants::kMinFrequency;
+    float rightFreqHz = Constants::kMaxFrequency;
+    int   slotIndex   = -1;  // -1 = gap (passthrough), 0-5 = user band slot
+
+    bool isGap() const { return slotIndex < 0; }
+};

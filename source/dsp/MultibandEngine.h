@@ -26,9 +26,16 @@ struct MultibandParameters
         float frequency = 1000.0f;
         int slope = 3; // 24 dB/oct
     };
+    // Legacy crossover params (kept for preset compat)
     std::array<CrossoverParams, Constants::kMaxCrossovers> crossovers;
 
     std::array<BandCompressorParameters, Constants::kMaxBands> bands;
+
+    // Region-based processing data
+    int numRegions = 0;
+    std::array<int, Constants::kMaxRegions> regionSlotMap {};       // -1 = gap
+    std::array<float, Constants::kMaxRegionCrossovers> regionCrossoverFreqs {};
+    int regionCrossoverSlope = 3; // default 24 dB/oct
 };
 
 class MultibandEngine
@@ -52,11 +59,11 @@ private:
     std::array<BandCompressorCore, Constants::kMaxBands> bandCompressors;
     Oversampler oversampler;
 
-    std::array<juce::AudioBuffer<float>, Constants::kMaxBands> bandBuffers;
+    std::array<juce::AudioBuffer<float>, Constants::kMaxRegions> regionBuffers;
     juce::AudioBuffer<float> dryBuffer;
 
-    int numBands = 0;
-    std::array<int, Constants::kMaxBands> currentSlotOrder = {0, 1, 2, 3, 4, 5};
+    int numRegions = 0;
+    std::array<int, Constants::kMaxRegions> currentRegionSlotMap {};
     float globalOutputGain = 1.0f;
     float mixAmount = 1.0f;
 

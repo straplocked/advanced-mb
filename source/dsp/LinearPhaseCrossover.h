@@ -22,7 +22,7 @@ public:
     void setCrossoverFrequency(int index, float hz);
 
     void process(const juce::AudioBuffer<float>& input,
-                 std::array<juce::AudioBuffer<float>, Constants::kMaxBands>& bandOutputs);
+                 std::array<juce::AudioBuffer<float>, Constants::kMaxRegions>& bandOutputs);
 
     int getLatencySamples() const { return kernelSize / 2; }
 
@@ -34,9 +34,9 @@ private:
     double sampleRate = 44100.0;
     int channels = 2;
 
-    std::array<float, Constants::kMaxCrossovers> crossoverFreqs;
+    std::array<float, Constants::kMaxRegionCrossovers> crossoverFreqs;
 
     // FIR convolution engines per band per channel
-    std::array<std::array<juce::dsp::FIR::Filter<float>, 2>, Constants::kMaxBands> firFilters;
-    std::array<std::vector<float>, Constants::kMaxBands> kernels;
+    std::array<std::array<juce::dsp::FIR::Filter<float>, 2>, Constants::kMaxRegions> firFilters;
+    std::array<std::vector<float>, Constants::kMaxRegions> kernels;
 };

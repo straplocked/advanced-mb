@@ -24,8 +24,8 @@ void MultibandEngine::prepare(double sampleRate, int maxBlockSize, int numChanne
     // Prepare oversampler
     oversampler.prepare(sampleRate, maxBlockSize, currentChannels);
 
-    // Allocate band buffers
-    for (auto& buf : bandBuffers)
+    // Allocate region buffers
+    for (auto& buf : regionBuffers)
         buf.setSize(currentChannels, maxBlockSize);
 
     // Allocate dry buffer
@@ -43,7 +43,7 @@ void MultibandEngine::reset()
 
     oversampler.reset();
 
-    for (auto& buf : bandBuffers)
+    for (auto& buf : regionBuffers)
         buf.clear();
 
     dryBuffer.clear();
@@ -51,29 +51,31 @@ void MultibandEngine::reset()
 
 void MultibandEngine::updateParameters(const MultibandParameters& params)
 {
-    numBands = std::clamp(params.numBands, 0, Constants::kMaxBands);
+    numRegions = std::clamp(params.numRegions, 0, Constants::kMaxRegions);
 
     globalOutputGain = MathUtils::dbToLinear(params.globalOutput);
     mixAmount = std::clamp(params.mix, 0.0f, 200.0f) * 0.01f;
 
-    // Store slot mapping
-    for (int i = 0; i < Constants::kMaxBands; ++i)
-        currentSlotOrder[i] = params.slotOrder[i];
+    // Store region slot mapping
+    for (int i = 0; i < Constants::kMaxRegions; ++i)
+        currentRegionSlotMap[i] = params.regionSlotMap[i];
 
-    // Update crossover bank (min 1 for the bank's internal logic)
-    crossoverBank.setNumBands(std::max(numBands, 1));
+    // Update crossover bank with region crossover frequencies
+    crossoverBank.setNumBands(std::max(numRegions, 1));
 
-    for (int i = 0; i < Constants::kMaxCrossovers; ++i)
+    int numRC = numRegions - 1;
+    for (int i = 0; i < numRC; ++i)
     {
-        crossoverBank.setCrossoverFrequency(i, params.crossovers[i].frequency);
-        crossoverBank.setCrossoverSlope(i, params.crossovers[i].slope);
+        crossoverBank.setCrossoverFrequency(i, params.regionCrossoverFreqs[i]);
+        crossoverBank.setCrossoverSlope(i, params.regionCrossoverSlope);
     }
 
-    // Update band compressors using slot mapping
-    for (int pos = 0; pos < numBands; ++pos)
+    // Update band compressors — only those with active user bands
+    for (int r = 0; r < numRegions; ++r)
     {
-        int slot = currentSlotOrder[pos];
-        bandCompressors[slot].updateParameters(params.bands[slot]);
+        int slot = currentRegionSlotMap[r];
+        if (slot >= 0 && slot < Constants::kMaxBands)
+            bandCompressors[slot].updateParameters(params.bands[slot]);
     }
 
     oversampler.setFactor(params.oversampleIndex);
@@ -84,32 +86,38 @@ void MultibandEngine::process(juce::AudioBuffer<float>& buffer)
     const int numSamples = buffer.getNumSamples();
     const int numChannels = std::min(buffer.getNumChannels(), currentChannels);
 
-    // 0 bands = pass through (no processing)
-    if (numBands <= 0)
+    // 0 regions = pass through (no processing)
+    if (numRegions <= 0)
+        return;
+
+    // 1 region that is a gap = pass through
+    if (numRegions == 1 && currentRegionSlotMap[0] < 0)
         return;
 
     // 1. Store dry copy for dry/wet mixing
     for (int ch = 0; ch < numChannels; ++ch)
         dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
-    // 2. Split via crossover bank into band buffers
-    crossoverBank.process(buffer, bandBuffers);
+    // 2. Split via crossover bank into region buffers
+    crossoverBank.process(buffer, regionBuffers);
 
-    // 3. Process each active band using slot mapping
-    for (int pos = 0; pos < numBands; ++pos)
+    // 3. Process each region: compress user bands, leave gaps untouched
+    for (int r = 0; r < numRegions; ++r)
     {
-        int slot = currentSlotOrder[pos];
-        bandCompressors[slot].process(bandBuffers[pos]);
+        int slot = currentRegionSlotMap[r];
+        if (slot >= 0 && slot < Constants::kMaxBands)
+            bandCompressors[slot].process(regionBuffers[r]);
+        // gaps (slot < 0) pass through unprocessed
     }
 
-    // 4. Sum all band outputs back into the main buffer
+    // 4. Sum all region outputs back into the main buffer
     buffer.clear();
-    for (int pos = 0; pos < numBands; ++pos)
+    for (int r = 0; r < numRegions; ++r)
     {
         for (int ch = 0; ch < numChannels; ++ch)
         {
             buffer.addFrom(ch, 0,
-                           bandBuffers[pos].getReadPointer(ch),
+                           regionBuffers[r].getReadPointer(ch),
                            numSamples);
         }
     }

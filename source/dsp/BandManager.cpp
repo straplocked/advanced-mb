@@ -19,10 +19,18 @@ void BandManager::init (juce::AudioProcessorValueTreeState& apvts)
     for (int i = 0; i < Constants::kMaxBands; ++i)
         slotOrder[static_cast<size_t> (i)].store (i, std::memory_order_relaxed);
 
+    for (int i = 0; i < Constants::kMaxRegions; ++i)
+        regionSlotOrder[static_cast<size_t> (i)].store (-1, std::memory_order_relaxed);
+
+    for (int i = 0; i < Constants::kMaxRegionCrossovers; ++i)
+        regionCrossoverFreqs[static_cast<size_t> (i)].store (1000.0f, std::memory_order_relaxed);
+
     numActive.store (0, std::memory_order_relaxed);
+    numRegionsAtomic.store (0, std::memory_order_relaxed);
 
     slotUsed.fill (false);
     activeBands.clear();
+    regions.clear();
 }
 
 //==============================================================================
@@ -34,30 +42,67 @@ int BandManager::addBand (float clickFreqHz)
     if (static_cast<int> (activeBands.size()) >= Constants::kMaxBands)
         return -1;
 
+    // Reject click inside an existing band
+    for (const auto& band : activeBands)
+    {
+        if (clickFreqHz >= band.leftFreqHz && clickFreqHz <= band.rightFreqHz)
+            return -1;
+    }
+
     int slot = allocateSlot();
     if (slot < 0)
         return -1;
 
     resetSlotToDefaults (slot);
 
+    // Compute centered band: default 2 octaves wide (F/2 to F*2)
+    float halfWidthOctaves = Constants::kDefaultBandWidthOctaves * 0.5f;
+    float proposedLeft  = clickFreqHz / std::pow (2.0f, halfWidthOctaves);
+    float proposedRight = clickFreqHz * std::pow (2.0f, halfWidthOctaves);
+
+    // Clamp to [20Hz, 20kHz]
+    proposedLeft  = std::max (proposedLeft,  Constants::kMinFrequency);
+    proposedRight = std::min (proposedRight, Constants::kMaxFrequency);
+
+    // Find the gap the click is in and clamp to that gap
+    float gapLeft  = Constants::kMinFrequency;
+    float gapRight = Constants::kMaxFrequency;
+
+    for (const auto& band : activeBands)
+    {
+        if (band.rightFreqHz <= clickFreqHz)
+            gapLeft = std::max (gapLeft, band.rightFreqHz);
+        if (band.leftFreqHz >= clickFreqHz)
+            gapRight = std::min (gapRight, band.leftFreqHz);
+    }
+
+    proposedLeft  = std::max (proposedLeft,  gapLeft);
+    proposedRight = std::min (proposedRight, gapRight);
+
+    // Enforce minimum width
+    float minWidthFactor = std::pow (2.0f, Constants::kMinBandWidthOctaves);
+    if (proposedRight < proposedLeft * minWidthFactor)
+    {
+        freeSlot (slot);
+        return -1;
+    }
+
     Band newBand;
     newBand.slotIndex   = slot;
-    newBand.leftFreqHz  = Constants::kMinFrequency;
-    newBand.rightFreqHz = Constants::kMaxFrequency;
+    newBand.leftFreqHz  = proposedLeft;
+    newBand.rightFreqHz = proposedRight;
 
-    // Find insertion position: compare clickFreqHz to the geometric centre of
-    // each existing band to keep the list ordered by frequency.
+    // Insert in frequency order
     auto insertIt = std::lower_bound (
-        activeBands.begin(), activeBands.end(), clickFreqHz,
-        [] (const Band& band, float freq)
+        activeBands.begin(), activeBands.end(), newBand,
+        [] (const Band& a, const Band& b)
         {
-            float centre = std::sqrt (band.leftFreqHz * band.rightFreqHz);
-            return centre < freq;
+            return a.leftFreqHz < b.leftFreqHz;
         });
 
     activeBands.insert (insertIt, newBand);
 
-    recomputeCrossovers();
+    recomputeRegions();
 
     // Update the APVTS numBands parameter
     if (auto* param = apvtsPtr->getParameter (ParameterIDs::Global::numBands))
@@ -82,7 +127,7 @@ int BandManager::removeBand (int bandPosition)
     activeBands.erase (activeBands.begin() + bandPosition);
     freeSlot (freedSlot);
 
-    recomputeCrossovers();
+    recomputeRegions();
 
     if (auto* param = apvtsPtr->getParameter (ParameterIDs::Global::numBands))
         param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (activeBands.size())));
@@ -109,6 +154,123 @@ int BandManager::getSlotForPosition (int position) const
 const std::vector<Band>& BandManager::getActiveBands() const
 {
     return activeBands;
+}
+
+const std::vector<Region>& BandManager::getRegions() const
+{
+    return regions;
+}
+
+int BandManager::getNumRegions() const
+{
+    return static_cast<int> (regions.size());
+}
+
+//==============================================================================
+// Atomic region data for audio thread
+//==============================================================================
+
+int BandManager::getNumRegionsAtomic() const
+{
+    return numRegionsAtomic.load (std::memory_order_acquire);
+}
+
+int BandManager::getRegionSlotForPosition (int regionPos) const
+{
+    if (regionPos < 0 || regionPos >= Constants::kMaxRegions)
+        return -1;
+
+    return regionSlotOrder[static_cast<size_t> (regionPos)].load (std::memory_order_relaxed);
+}
+
+float BandManager::getRegionCrossoverFreq (int index) const
+{
+    if (index < 0 || index >= Constants::kMaxRegionCrossovers)
+        return 1000.0f;
+
+    return regionCrossoverFreqs[static_cast<size_t> (index)].load (std::memory_order_relaxed);
+}
+
+//==============================================================================
+void BandManager::setBandEdge (int bandPosition, bool isLeftEdge, float newFreqHz)
+{
+    if (bandPosition < 0 || bandPosition >= static_cast<int> (activeBands.size()))
+        return;
+
+    newFreqHz = std::clamp (newFreqHz, Constants::kMinFrequency, Constants::kMaxFrequency);
+
+    auto& band = activeBands[static_cast<size_t> (bandPosition)];
+    const float minWidthFactor = std::pow (2.0f, Constants::kMinBandWidthOctaves);
+
+    if (isLeftEdge)
+    {
+        // Check if this left edge is shared with the previous band's right edge
+        bool shared = (bandPosition > 0) &&
+            std::abs (band.leftFreqHz - activeBands[static_cast<size_t> (bandPosition - 1)].rightFreqHz) < 0.5f;
+
+        if (shared)
+        {
+            // Shared boundary: move both edges together, clamped by both bands' min widths
+            auto& prevBand = activeBands[static_cast<size_t> (bandPosition - 1)];
+
+            float minPos = prevBand.leftFreqHz * minWidthFactor;
+            float maxPos = band.rightFreqHz / minWidthFactor;
+
+            // Also can't go past the band before prev or after current
+            if (bandPosition > 1)
+                minPos = std::max (minPos, activeBands[static_cast<size_t> (bandPosition - 2)].rightFreqHz);
+
+            newFreqHz = std::clamp (newFreqHz, minPos, maxPos);
+            prevBand.rightFreqHz = newFreqHz;
+            band.leftFreqHz = newFreqHz;
+        }
+        else
+        {
+            float minLeft = Constants::kMinFrequency;
+            if (bandPosition > 0)
+                minLeft = activeBands[static_cast<size_t> (bandPosition - 1)].rightFreqHz;
+
+            float maxLeft = band.rightFreqHz / minWidthFactor;
+            newFreqHz = std::clamp (newFreqHz, minLeft, maxLeft);
+            band.leftFreqHz = newFreqHz;
+        }
+    }
+    else
+    {
+        // Check if this right edge is shared with the next band's left edge
+        bool shared = (bandPosition + 1 < static_cast<int> (activeBands.size())) &&
+            std::abs (band.rightFreqHz - activeBands[static_cast<size_t> (bandPosition + 1)].leftFreqHz) < 0.5f;
+
+        if (shared)
+        {
+            // Shared boundary: move both edges together
+            auto& nextBand = activeBands[static_cast<size_t> (bandPosition + 1)];
+
+            float minPos = band.leftFreqHz * minWidthFactor;
+            float maxPos = nextBand.rightFreqHz / minWidthFactor;
+
+            // Also can't go past the band after next
+            if (bandPosition + 2 < static_cast<int> (activeBands.size()))
+                maxPos = std::min (maxPos, activeBands[static_cast<size_t> (bandPosition + 2)].leftFreqHz);
+
+            newFreqHz = std::clamp (newFreqHz, minPos, maxPos);
+            band.rightFreqHz = newFreqHz;
+            nextBand.leftFreqHz = newFreqHz;
+        }
+        else
+        {
+            float maxRight = Constants::kMaxFrequency;
+            if (bandPosition + 1 < static_cast<int> (activeBands.size()))
+                maxRight = activeBands[static_cast<size_t> (bandPosition + 1)].leftFreqHz;
+
+            float minRight = band.leftFreqHz * minWidthFactor;
+            newFreqHz = std::clamp (newFreqHz, minRight, maxRight);
+            band.rightFreqHz = newFreqHz;
+        }
+    }
+
+    recomputeRegions();
+    updateAtomics();
 }
 
 //==============================================================================
@@ -167,36 +329,63 @@ void BandManager::readFromState (const juce::ValueTree& state)
                [] (const Band& a, const Band& b)
                { return a.leftFreqHz < b.leftFreqHz; });
 
+    recomputeRegions();
     updateAtomics();
 }
 
 //==============================================================================
-void BandManager::recomputeCrossovers()
+void BandManager::recomputeRegions()
 {
-    const int n = static_cast<int> (activeBands.size());
-    if (n == 0)
-        return;
+    regions.clear();
 
-    const float logMin  = std::log (Constants::kMinFrequency);
-    const float logMax  = std::log (Constants::kMaxFrequency);
-    const float logStep = (logMax - logMin) / static_cast<float> (n);
+    const int n = static_cast<int> (activeBands.size());
+
+    if (n == 0)
+    {
+        // No bands: single gap region spanning entire spectrum
+        Region gap;
+        gap.leftFreqHz  = Constants::kMinFrequency;
+        gap.rightFreqHz = Constants::kMaxFrequency;
+        gap.slotIndex   = -1;
+        regions.push_back (gap);
+        return;
+    }
+
+    // Build regions: [gap?] [band, gap?]... in frequency order
+    float cursor = Constants::kMinFrequency;
 
     for (int i = 0; i < n; ++i)
     {
-        activeBands[static_cast<size_t> (i)].leftFreqHz  = std::exp (logMin + logStep * static_cast<float> (i));
-        activeBands[static_cast<size_t> (i)].rightFreqHz = std::exp (logMin + logStep * static_cast<float> (i + 1));
+        const auto& band = activeBands[static_cast<size_t> (i)];
+
+        // Gap before this band (if any)
+        if (band.leftFreqHz > cursor + 0.1f) // avoid zero-width gaps
+        {
+            Region gap;
+            gap.leftFreqHz  = cursor;
+            gap.rightFreqHz = band.leftFreqHz;
+            gap.slotIndex   = -1;
+            regions.push_back (gap);
+        }
+
+        // The band itself
+        Region userRegion;
+        userRegion.leftFreqHz  = band.leftFreqHz;
+        userRegion.rightFreqHz = band.rightFreqHz;
+        userRegion.slotIndex   = band.slotIndex;
+        regions.push_back (userRegion);
+
+        cursor = band.rightFreqHz;
     }
 
-    // Write crossover frequencies to APVTS (N-1 crossovers for N bands)
-    if (apvtsPtr != nullptr)
+    // Gap after last band (if any)
+    if (cursor < Constants::kMaxFrequency - 0.1f)
     {
-        for (int i = 0; i < n - 1; ++i)
-        {
-            auto paramID = ParameterIDs::crossoverParam (i, ParameterIDs::Crossover::frequency);
-            if (auto* param = apvtsPtr->getParameter (paramID))
-                param->setValueNotifyingHost (
-                    param->convertTo0to1 (activeBands[static_cast<size_t> (i)].rightFreqHz));
-        }
+        Region gap;
+        gap.leftFreqHz  = cursor;
+        gap.rightFreqHz = Constants::kMaxFrequency;
+        gap.slotIndex   = -1;
+        regions.push_back (gap);
     }
 }
 
@@ -262,13 +451,34 @@ void BandManager::updateAtomics()
 {
     const int n = static_cast<int> (activeBands.size());
 
+    // Update band slot order
     for (int i = 0; i < n; ++i)
         slotOrder[static_cast<size_t> (i)].store (
             activeBands[static_cast<size_t> (i)].slotIndex, std::memory_order_relaxed);
 
-    // Fill remaining positions with -1
     for (int i = n; i < Constants::kMaxBands; ++i)
         slotOrder[static_cast<size_t> (i)].store (-1, std::memory_order_relaxed);
 
     numActive.store (n, std::memory_order_release);
+
+    // Update region atomics
+    const int numR = static_cast<int> (regions.size());
+
+    for (int i = 0; i < numR; ++i)
+        regionSlotOrder[static_cast<size_t> (i)].store (
+            regions[static_cast<size_t> (i)].slotIndex, std::memory_order_relaxed);
+
+    for (int i = numR; i < Constants::kMaxRegions; ++i)
+        regionSlotOrder[static_cast<size_t> (i)].store (-1, std::memory_order_relaxed);
+
+    // Region crossover frequencies (boundaries between adjacent regions)
+    int numRC = numR - 1;
+    for (int i = 0; i < numRC; ++i)
+        regionCrossoverFreqs[static_cast<size_t> (i)].store (
+            regions[static_cast<size_t> (i)].rightFreqHz, std::memory_order_relaxed);
+
+    for (int i = numRC; i < Constants::kMaxRegionCrossovers; ++i)
+        regionCrossoverFreqs[static_cast<size_t> (i)].store (1000.0f, std::memory_order_relaxed);
+
+    numRegionsAtomic.store (numR, std::memory_order_release);
 }

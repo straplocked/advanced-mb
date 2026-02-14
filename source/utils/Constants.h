@@ -13,6 +13,14 @@ namespace Constants
     constexpr int kMaxCrossovers = 5;
     constexpr int kDefaultNumBands = 0;
 
+    // Region configuration (N user bands → up to 2N+1 regions with gaps)
+    constexpr int kMaxRegions = 13;           // 6 user + 7 gaps max
+    constexpr int kMaxRegionCrossovers = 12;  // kMaxRegions - 1
+
+    // Band width limits (in octaves)
+    constexpr float kMinBandWidthOctaves = 0.25f;
+    constexpr float kDefaultBandWidthOctaves = 2.0f;
+
     // Frequency range
     constexpr float kMinFrequency = 20.0f;
     constexpr float kMaxFrequency = 20000.0f;

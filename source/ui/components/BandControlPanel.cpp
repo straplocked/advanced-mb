@@ -45,8 +45,16 @@ BandControlPanel::BandControlPanel ( juce::AudioProcessorValueTreeState& vts )
     setupButton ( enableButton );
     setupButton ( modeButton );
     setupButton ( auditionButton );
-    setupButton ( deleteButton );
     setupButton ( closeButton );
+
+    // Delete button with distinct red-tinted colour
+    deleteButton.setColour ( juce::TextButton::buttonColourId,
+                             juce::Colour ( 0xff2a1018 ) );
+    deleteButton.setColour ( juce::TextButton::textColourOnId,
+                             ColourPalette::meterRed );
+    deleteButton.setColour ( juce::TextButton::textColourOffId,
+                             ColourPalette::meterRed.withAlpha ( 0.7f ) );
+    addAndMakeVisible ( deleteButton );
 
     // Mode button cycles compress/expand on click
     modeButton.onClick = [this]
@@ -241,18 +249,16 @@ void BandControlPanel::resized()
     // Band colour bar is purely painted (3px), skip it in layout
     bounds.removeFromTop ( 3 );
 
-    // Left section (~200px): band label + buttons
-    auto leftSection = bounds.removeFromLeft ( 200 );
+    // Left section: band label + buttons
+    auto leftSection = bounds.removeFromLeft ( 260 );
     leftSection.reduce ( 8, 4 );
 
-    // Top row of left section: Band label + close + delete
+    // Top row of left section: Band label + close
     auto leftTopRow = leftSection.removeFromTop ( 24 );
     bandLabel.setBounds ( leftTopRow.removeFromLeft ( 70 ) );
     closeButton.setBounds ( leftTopRow.removeFromRight ( 28 ) );
-    deleteButton.setBounds ( leftTopRow.removeFromRight ( 36 ) );
-    leftTopRow.removeFromRight ( 4 );
 
-    // Bottom row of left section: mode, enable, audition
+    // Bottom row of left section: mode, enable, audition, delete
     leftSection.removeFromTop ( 4 );
     auto leftBtnRow = leftSection.removeFromTop ( 24 );
     modeButton.setBounds ( leftBtnRow.removeFromLeft ( 60 ) );
@@ -260,6 +266,8 @@ void BandControlPanel::resized()
     enableButton.setBounds ( leftBtnRow.removeFromLeft ( 36 ) );
     leftBtnRow.removeFromLeft ( 4 );
     auditionButton.setBounds ( leftBtnRow.removeFromLeft ( 50 ) );
+    leftBtnRow.removeFromLeft ( 4 );
+    deleteButton.setBounds ( leftBtnRow.removeFromLeft ( 56 ) );
 
     // Right section: all 9 knobs in a single horizontal row
     auto knobArea = bounds.reduced ( 4, 2 );

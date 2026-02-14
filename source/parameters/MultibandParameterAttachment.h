@@ -79,12 +79,23 @@ public:
             p.numBands = bandManager->getNumActiveBands();
             for (int i = 0; i < Constants::kMaxBands; ++i)
                 p.slotOrder[i] = bandManager->getSlotForPosition (i);
+
+            // Populate region data from BandManager atomics
+            p.numRegions = bandManager->getNumRegionsAtomic();
+            for (int i = 0; i < Constants::kMaxRegions; ++i)
+                p.regionSlotMap[i] = bandManager->getRegionSlotForPosition (i);
+            for (int i = 0; i < Constants::kMaxRegionCrossovers; ++i)
+                p.regionCrossoverFreqs[i] = bandManager->getRegionCrossoverFreq (i);
+
+            // Use first crossover's slope for all region crossovers
+            p.regionCrossoverSlope = (int)crossoverSlope[0]->load();
         }
         else
         {
             p.numBands = (int)numBands->load();
         }
 
+        // Legacy crossover params (kept for preset compatibility)
         for (int i = 0; i < Constants::kMaxCrossovers; ++i)
         {
             p.crossovers[i].frequency = crossoverFreq[i]->load();

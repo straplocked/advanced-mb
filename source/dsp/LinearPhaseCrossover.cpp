@@ -12,13 +12,6 @@ namespace
 {
     constexpr double kPi = 3.14159265358979323846;
 
-    // Generate a Hann window of given size
-    void makeHannWindow(float* window, int size)
-    {
-        for (int i = 0; i < size; ++i)
-            window[i] = 0.5f * (1.0f - static_cast<float>(std::cos(2.0 * kPi * i / (size - 1))));
-    }
-
     // Generate a windowed-sinc low-pass FIR kernel
     // fc = normalised cutoff frequency (0 to 0.5, where 0.5 = Nyquist)
     void makeLowPassKernel(float* kernel, int size, double fc)
@@ -75,7 +68,7 @@ void LinearPhaseCrossover::reset()
 
 void LinearPhaseCrossover::setNumBands(int n)
 {
-    int newBands = std::clamp(n, 1, Constants::kMaxBands);
+    int newBands = std::clamp(n, 1, Constants::kMaxRegions);
     if (newBands != numBands)
     {
         numBands = newBands;
@@ -85,7 +78,7 @@ void LinearPhaseCrossover::setNumBands(int n)
 
 void LinearPhaseCrossover::setCrossoverFrequency(int index, float hz)
 {
-    if (index < 0 || index >= Constants::kMaxCrossovers)
+    if (index < 0 || index >= Constants::kMaxRegionCrossovers)
         return;
 
     hz = std::clamp(hz, Constants::kMinFrequency, Constants::kMaxFrequency);
@@ -110,7 +103,6 @@ void LinearPhaseCrossover::rebuildKernels()
         kernels[0][static_cast<size_t>(kernelSize / 2)] = 1.0f;
 
         // Set up FIR filters for band 0
-        auto coeffs = juce::dsp::FIR::Coefficients<float>(kernels[0].data(), static_cast<size_t>(kernelSize));
         for (int ch = 0; ch < channels; ++ch)
             firFilters[0][ch].coefficients = new juce::dsp::FIR::Coefficients<float>(kernels[0].data(), static_cast<size_t>(kernelSize));
 
@@ -172,13 +164,13 @@ void LinearPhaseCrossover::rebuildKernels()
 }
 
 void LinearPhaseCrossover::process(const juce::AudioBuffer<float>& input,
-                                   std::array<juce::AudioBuffer<float>, Constants::kMaxBands>& bandOutputs)
+                                   std::array<juce::AudioBuffer<float>, Constants::kMaxRegions>& bandOutputs)
 {
     const int numSamples = input.getNumSamples();
     const int numChannels = std::min(input.getNumChannels(), channels);
 
     // Ensure output buffers are properly sized
-    for (int b = 0; b < Constants::kMaxBands; ++b)
+    for (int b = 0; b < Constants::kMaxRegions; ++b)
     {
         if (bandOutputs[b].getNumChannels() < numChannels ||
             bandOutputs[b].getNumSamples() < numSamples)
@@ -188,10 +180,6 @@ void LinearPhaseCrossover::process(const juce::AudioBuffer<float>& input,
         bandOutputs[b].clear();
     }
 
-    // If single band, pass-through with latency compensation (delay by kernelSize/2)
-    // For simplicity in this implementation, we still convolve with the delta kernel
-    // which naturally introduces the correct latency.
-
     // Convolve each band's kernel with the input for each channel
     for (int b = 0; b < numBands; ++b)
     {
@@ -200,7 +188,6 @@ void LinearPhaseCrossover::process(const juce::AudioBuffer<float>& input,
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            // Process sample-by-sample through the FIR filter
             const float* inputData = input.getReadPointer(ch);
             float* outputData = bandOutputs[b].getWritePointer(ch);
 

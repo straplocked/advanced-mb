@@ -94,6 +94,13 @@ namespace ColourPalette
     inline const juce::Colour knobIndicator     { 0xff7aff3a };
 
     // =========================================================================
+    // Hover preview (band creation)
+    // =========================================================================
+    inline const juce::Colour hoverPreviewLine  { 0x80e8e8e8 };   // dashed boundary lines
+    inline const juce::Colour hoverPreviewDot   { 0xffe8e8e8 };   // dot on threshold line
+    inline const juce::Colour hoverPreviewFill  { 0x14ffffff };   // subtle fill
+
+    // =========================================================================
     // Spectrum
     // =========================================================================
     inline const juce::Colour spectrumPre       { 0x30667766 };
@@ -105,4 +112,13 @@ namespace ColourPalette
     inline const juce::Colour ringMeterLow      { 0xff4caf50 };
     inline const juce::Colour ringMeterMid      { 0xffffeb3b };
     inline const juce::Colour ringMeterHigh     { 0xffff5252 };
+
+    // =========================================================================
+    // Band control dots & buttons
+    // =========================================================================
+    inline const juce::Colour controlDotInner    { 0xffffffff };   // white inner circle
+    inline const juce::Colour buttonActive       { 0xddffffff };   // S/M when toggled on
+    inline const juce::Colour buttonInactive     { 0x60ffffff };   // S/M when off
+    inline const juce::Colour buttonBackground   { 0x30000000 };   // button bg
+    inline const juce::Colour rangeBoundary      { 0x80ffffff };   // thin line at range edge
 }

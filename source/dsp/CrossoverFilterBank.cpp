@@ -14,7 +14,7 @@ void CrossoverFilterBank::prepare(double newSampleRate, int maxBlockSize, int nu
 
     // Prepare all crossover filters for both channels
     for (int ch = 0; ch < 2; ++ch)
-        for (int i = 0; i < Constants::kMaxCrossovers; ++i)
+        for (int i = 0; i < Constants::kMaxRegionCrossovers; ++i)
             crossovers[ch][i].prepare(sampleRate);
 
     // Allocate temp buffers
@@ -27,7 +27,7 @@ void CrossoverFilterBank::prepare(double newSampleRate, int maxBlockSize, int nu
 void CrossoverFilterBank::reset()
 {
     for (int ch = 0; ch < 2; ++ch)
-        for (int i = 0; i < Constants::kMaxCrossovers; ++i)
+        for (int i = 0; i < Constants::kMaxRegionCrossovers; ++i)
             crossovers[ch][i].reset();
 
     for (auto& buf : tempBuffers)
@@ -36,12 +36,12 @@ void CrossoverFilterBank::reset()
 
 void CrossoverFilterBank::setNumBands(int n)
 {
-    numBands = std::clamp(n, 0, Constants::kMaxBands);
+    numBands = std::clamp(n, 0, Constants::kMaxRegions);
 }
 
 void CrossoverFilterBank::setCrossoverFrequency(int index, float hz)
 {
-    if (index < 0 || index >= Constants::kMaxCrossovers)
+    if (index < 0 || index >= Constants::kMaxRegionCrossovers)
         return;
 
     for (int ch = 0; ch < 2; ++ch)
@@ -50,7 +50,7 @@ void CrossoverFilterBank::setCrossoverFrequency(int index, float hz)
 
 void CrossoverFilterBank::setCrossoverSlope(int index, int slopeIndex)
 {
-    if (index < 0 || index >= Constants::kMaxCrossovers)
+    if (index < 0 || index >= Constants::kMaxRegionCrossovers)
         return;
 
     for (int ch = 0; ch < 2; ++ch)
@@ -59,20 +59,20 @@ void CrossoverFilterBank::setCrossoverSlope(int index, int slopeIndex)
 
 float CrossoverFilterBank::getCrossoverFrequency(int index) const
 {
-    if (index < 0 || index >= Constants::kMaxCrossovers)
+    if (index < 0 || index >= Constants::kMaxRegionCrossovers)
         return 1000.0f;
 
     return crossovers[0][index].getFrequency();
 }
 
 void CrossoverFilterBank::process(const juce::AudioBuffer<float>& input,
-                                  std::array<juce::AudioBuffer<float>, Constants::kMaxBands>& bandOutputs)
+                                  std::array<juce::AudioBuffer<float>, Constants::kMaxRegions>& bandOutputs)
 {
     const int numSamples = input.getNumSamples();
     const int numChannels = std::min(input.getNumChannels(), channels);
 
     // Ensure band output buffers are sized correctly
-    for (int b = 0; b < Constants::kMaxBands; ++b)
+    for (int b = 0; b < Constants::kMaxRegions; ++b)
     {
         if (bandOutputs[b].getNumChannels() < numChannels ||
             bandOutputs[b].getNumSamples() < numSamples)
