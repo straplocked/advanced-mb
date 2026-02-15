@@ -414,8 +414,8 @@ void BandManager::resetSlotToDefaults (int slotIndex)
     setFloat (ParameterIDs::Band::threshold,  0.0f);
     setFloat (ParameterIDs::Band::ratio,      1.0f);
     setFloat (ParameterIDs::Band::range,      0.0f);
-    setFloat (ParameterIDs::Band::attack,     Constants::kDefaultAttackPct);
-    setFloat (ParameterIDs::Band::release,    Constants::kDefaultReleasePct);
+    setFloat (ParameterIDs::Band::attack,     Constants::kDefaultAttackMs);
+    setFloat (ParameterIDs::Band::release,    Constants::kDefaultReleaseMs);
     setFloat (ParameterIDs::Band::outputGain, 0.0f);
     setFloat (ParameterIDs::Band::knee,       Constants::kDefaultKnee);
     setFloat (ParameterIDs::Band::lookahead,  0.0f);

@@ -109,8 +109,8 @@ public:
             p.bands[i].threshold = bandThreshold[i]->load();
             p.bands[i].range = bandRange[i]->load();
             p.bands[i].ratio = bandRatio[i]->load();
-            p.bands[i].attackPct = bandAttack[i]->load();
-            p.bands[i].releasePct = bandRelease[i]->load();
+            p.bands[i].attackMs = bandAttack[i]->load();
+            p.bands[i].releaseMs = bandRelease[i]->load();
             p.bands[i].outputGain = bandOutputGain[i]->load();
             p.bands[i].knee = bandKnee[i]->load();
             p.bands[i].lookaheadMs = bandLookahead[i]->load();

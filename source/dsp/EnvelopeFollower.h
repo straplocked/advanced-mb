@@ -16,9 +16,9 @@ public:
     void prepare(double sampleRate);
     void reset();
 
-    // Set attack/release as percentage (0-100%)
-    void setAttackPercent(float pct);
-    void setReleasePercent(float pct);
+    // Set attack/release in milliseconds
+    void setAttackMs(float ms);
+    void setReleaseMs(float ms);
 
     // Set the band's center frequency for frequency-dependent timing
     void setBandFrequency(float freq);
@@ -28,13 +28,9 @@ public:
 private:
     void updateCoefficients();
 
-    // Convert percentage to ms based on band frequency
-    float percentToAttackMs(float pct) const;
-    float percentToReleaseMs(float pct) const;
-
     double currentSampleRate = 44100.0;
-    float attackPct = 50.0f;
-    float releasePct = 50.0f;
+    float attackMs = 5.0f;
+    float releaseMs = 100.0f;
     float bandFrequency = 1000.0f;
 
     float attackCoeff = 0.0f;

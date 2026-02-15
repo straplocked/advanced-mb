@@ -47,14 +47,15 @@ namespace Constants
     constexpr float kMaxRatio = 100.0f;
     constexpr float kDefaultRatio = 4.0f;
 
-    // Attack/Release (percentage, 0-100%)
-    constexpr float kMinAttackPct = 0.0f;
-    constexpr float kMaxAttackPct = 100.0f;
-    constexpr float kDefaultAttackPct = 50.0f;
+    // Attack (ms) — logarithmic range
+    constexpr float kMinAttackMs = 0.01f;
+    constexpr float kMaxAttackMs = 500.0f;
+    constexpr float kDefaultAttackMs = 5.0f;
 
-    constexpr float kMinReleasePct = 0.0f;
-    constexpr float kMaxReleasePct = 100.0f;
-    constexpr float kDefaultReleasePct = 50.0f;
+    // Release (ms) — logarithmic range
+    constexpr float kMinReleaseMs = 1.0f;
+    constexpr float kMaxReleaseMs = 5000.0f;
+    constexpr float kDefaultReleaseMs = 100.0f;
 
     // Knee (dB)
     constexpr float kMinKnee = 0.0f;
@@ -103,8 +104,17 @@ namespace Constants
     // UI layout
     constexpr int kHeaderHeight = 36;
     constexpr int kBottomStripHeight = 28;
-    constexpr int kBandControlPanelHeight = 160;
     constexpr int kMeterWidth = 20;
+
+    // Floating popup panel
+    constexpr int kPopupPanelWidth           = 660;
+    constexpr int kPopupPanelHeight          = 148;
+    constexpr int kPopupPanelBottomMargin    = 24;
+    constexpr int kPopupCornerRadius         = 8;
+    constexpr int kPopupAnimationMs          = 200;
+    constexpr int kPopupHeaderHeight         = 28;
+    constexpr float kPopupMinWidthRatio      = 0.55f;
+    constexpr float kPopupMaxWidthRatio      = 0.70f;
 
     // FFT configuration
     constexpr int kFFTOrder = 12;

@@ -102,14 +102,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterLayout::createLayou
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             ParameterIDs::bandParam(i, ParameterIDs::Band::attack),
             prefix + "Attack",
-            juce::NormalisableRange<float>(Constants::kMinAttackPct, Constants::kMaxAttackPct, 0.1f),
-            Constants::kDefaultAttackPct));
+            juce::NormalisableRange<float>(Constants::kMinAttackMs, Constants::kMaxAttackMs, 0.01f, 0.25f),
+            Constants::kDefaultAttackMs));
 
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             ParameterIDs::bandParam(i, ParameterIDs::Band::release),
             prefix + "Release",
-            juce::NormalisableRange<float>(Constants::kMinReleasePct, Constants::kMaxReleasePct, 0.1f),
-            Constants::kDefaultReleasePct));
+            juce::NormalisableRange<float>(Constants::kMinReleaseMs, Constants::kMaxReleaseMs, 0.1f, 0.25f),
+            Constants::kDefaultReleaseMs));
 
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             ParameterIDs::bandParam(i, ParameterIDs::Band::outputGain),

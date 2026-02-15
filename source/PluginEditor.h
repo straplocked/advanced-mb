@@ -34,6 +34,8 @@ public:
 
 private:
     void timerCallback() override;
+    void showBandControlPanel();
+    void hideBandControlPanel();
 
     AdvancedMBProcessor& processor;
 
@@ -46,6 +48,8 @@ private:
     LevelMeterComponent levelMeter;
     PresetBrowserPanel presetBrowser;
     HelpOverlay helpOverlay;
+
+    juce::ComponentAnimator panelAnimator;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( AdvancedMBEditor )
 };

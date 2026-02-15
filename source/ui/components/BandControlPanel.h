@@ -22,17 +22,8 @@
 /**
  * @brief Floating overlay panel that exposes per-band compressor parameters.
  *
- * Layout (approximately 450 x 200 px, centred horizontally in the display):
- *
- *   [Band N label] [Compress/Expand toggle] [Enable toggle] [Audition] [X close]
- *    THRESHOLD   RANGE    ATTACK   RELEASE   OUTPUT
- *     (knob)    (knob)   (knob)   (knob)    (knob)
- *    RATIO      KNEE   LOOKAHEAD  STEREO LINK
- *     (knob)    (knob)   (knob)     (knob)
- *
- * All knobs use APVTS SliderAttachments that are rebuilt when the selected band
- * changes.  The panel header bar is tinted with the band's colour from
- * ColourPalette.
+ * Two-column layout of horizontal sliders with a header bar tinted in the
+ * band's colour.  All sliders use APVTS SliderAttachments rebuilt on band change.
  */
 class BandControlPanel : public juce::Component
 {
@@ -58,9 +49,13 @@ public:
      *  Parameter is the frequency-ordered band position. */
     std::function<void ( int )> onDeleteBand;
 
+    /** Computes popup bounds centred in the given display area. */
+    juce::Rectangle<int> calculatePopupBounds ( juce::Rectangle<int> displayArea ) const;
+
 private:
     void rebuildAttachments();
     void configureKnob ( juce::Slider& knob, juce::Label& label, const juce::String& text );
+    void configureSlider ( juce::Slider& slider, juce::Label& label, const juce::String& text );
 
     juce::AudioProcessorValueTreeState& apvts;
     int selectedBand = -1;

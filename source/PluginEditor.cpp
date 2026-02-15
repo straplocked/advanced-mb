@@ -30,7 +30,7 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     addAndMakeVisible ( bottomControlStrip );
     addAndMakeVisible ( levelMeter );
 
-    // BandControlPanel is a sibling docked at the bottom (not an overlay)
+    // BandControlPanel is a floating overlay (child, not always visible)
     addChildComponent ( bandControlPanel );
 
     // PresetBrowserPanel overlays the right side of the display
@@ -49,8 +49,7 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
             int slot = bands[bandPosition].slotIndex;
             bandControlPanel.setSelectedPosition ( bandPosition );
             bandControlPanel.setSelectedBand ( slot );
-            bandControlPanel.setVisible ( true );
-            resized();
+            showBandControlPanel();
         }
     };
 
@@ -64,34 +63,24 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
             int slot = bands[bandPosition].slotIndex;
             bandControlPanel.setSelectedPosition ( bandPosition );
             bandControlPanel.setSelectedBand ( slot );
-            bandControlPanel.setVisible ( true );
-            resized();
+            showBandControlPanel();
         }
-    };
-
-    // When the same band is clicked again, deselect it
-    multibandDisplay.onBandDeselected = [this]
-    {
-        bandControlPanel.setVisible ( false );
-        resized();
     };
 
     // When the band control panel is closed, deselect the band
     bandControlPanel.onClose = [this]
     {
-        bandControlPanel.setVisible ( false );
+        hideBandControlPanel();
         multibandDisplay.setSelectedBand ( -1 );
-        resized();
     };
 
     // When the delete button is clicked on the band control panel
     bandControlPanel.onDeleteBand = [this] ( int bandPosition )
     {
         processor.getBandManager().removeBand ( bandPosition );
-        bandControlPanel.setVisible ( false );
+        hideBandControlPanel();
         bandControlPanel.setSelectedBand ( -1 );
         multibandDisplay.setSelectedBand ( -1 );
-        resized();
     };
 
     // Clicking preset name toggles preset browser
@@ -138,15 +127,19 @@ void AdvancedMBEditor::resized()
     // Bottom control strip across the bottom
     bottomControlStrip.setBounds ( bounds.removeFromBottom ( Constants::kBottomStripHeight ) );
 
-    // Band control panel docked above the bottom strip (only when visible)
-    if ( bandControlPanel.isVisible() )
-        bandControlPanel.setBounds ( bounds.removeFromBottom ( Constants::kBandControlPanelHeight ) );
-
     // Level meter on the right edge of the remaining centre area
     levelMeter.setBounds ( bounds.removeFromRight ( Constants::kMeterWidth ) );
 
-    // Multiband display fills the rest
+    // Multiband display always fills the full remaining space (no docking)
     multibandDisplay.setBounds ( bounds );
+
+    // Reposition floating panel overlay if visible
+    if ( bandControlPanel.isVisible() && ! panelAnimator.isAnimating ( &bandControlPanel ) )
+    {
+        bandControlPanel.setBounds (
+            bandControlPanel.calculatePopupBounds ( multibandDisplay.getBounds() ) );
+        bandControlPanel.toFront ( false );
+    }
 
     // Preset browser overlays the right side of the display area
     if ( presetBrowser.isVisible() )
@@ -160,6 +153,63 @@ void AdvancedMBEditor::resized()
     // Help overlay covers everything
     helpOverlay.setBounds ( getLocalBounds() );
     helpOverlay.toFront ( false );
+}
+
+//==============================================================================
+// Floating panel show/hide with animation
+//==============================================================================
+
+void AdvancedMBEditor::showBandControlPanel()
+{
+    // Cancel any in-progress hide animation
+    panelAnimator.cancelAnimation ( &bandControlPanel, false );
+
+    auto displayBounds = multibandDisplay.getBounds();
+    auto targetBounds = bandControlPanel.calculatePopupBounds ( displayBounds );
+
+    // Fully visible and opaque — just reposition (e.g. switching bands)
+    if ( bandControlPanel.isVisible() && bandControlPanel.getAlpha() >= 1.0f )
+    {
+        bandControlPanel.setBounds ( targetBounds );
+        bandControlPanel.toFront ( false );
+        return;
+    }
+
+    // Animate in from below
+    auto startBounds = targetBounds.translated ( 0, targetBounds.getHeight() + Constants::kPopupPanelBottomMargin );
+    bandControlPanel.setBounds ( startBounds );
+    bandControlPanel.setAlpha ( 0.0f );
+    bandControlPanel.setVisible ( true );
+    bandControlPanel.toFront ( false );
+
+    panelAnimator.animateComponent ( &bandControlPanel,
+                                      targetBounds, 1.0f,
+                                      Constants::kPopupAnimationMs,
+                                      false, 1.0, 1.0 );
+}
+
+void AdvancedMBEditor::hideBandControlPanel()
+{
+    if ( ! bandControlPanel.isVisible() )
+        return;
+
+    panelAnimator.cancelAnimation ( &bandControlPanel, false );
+
+    auto currentBounds = bandControlPanel.getBounds();
+    auto offScreenBounds = currentBounds.translated ( 0,
+        currentBounds.getHeight() + Constants::kPopupPanelBottomMargin );
+
+    panelAnimator.animateComponent ( &bandControlPanel,
+                                      offScreenBounds, 0.0f,
+                                      Constants::kPopupAnimationMs,
+                                      false, 1.0, 1.0 );
+
+    // Hide after animation completes — only if still faded out
+    juce::Timer::callAfterDelay ( Constants::kPopupAnimationMs + 20, [this]
+    {
+        if ( bandControlPanel.getAlpha() < 0.05f )
+            bandControlPanel.setVisible ( false );
+    });
 }
 
 void AdvancedMBEditor::timerCallback()

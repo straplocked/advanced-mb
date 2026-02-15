@@ -121,4 +121,13 @@ namespace ColourPalette
     inline const juce::Colour buttonInactive     { 0x60ffffff };   // S/M when off
     inline const juce::Colour buttonBackground   { 0x30000000 };   // button bg
     inline const juce::Colour rangeBoundary      { 0x80ffffff };   // thin line at range edge
+
+    // =========================================================================
+    // Floating overlay panel
+    // =========================================================================
+    inline const juce::Colour overlayBackground  { 0xe00a0a16 };   // ~88% opaque dark
+    inline const juce::Colour overlayBorder      { 0x30ffffff };
+    inline const juce::Colour overlayShadow      { 0x60000000 };
+    inline const juce::Colour expertToggleNormal { 0x80ffffff };
+    inline const juce::Colour expertToggleActive { 0xddffffff };
 }

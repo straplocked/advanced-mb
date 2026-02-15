@@ -16,8 +16,8 @@ struct BandCompressorParameters
     float ratio = 4.0f;
     float knee = 6.0f;
     float range = 30.0f;
-    float attackPct = 50.0f;
-    float releasePct = 50.0f;
+    float attackMs = 5.0f;
+    float releaseMs = 100.0f;
     float outputGain = 0.0f;
     float stereoLink = 100.0f;
     float lookaheadMs = 0.0f;

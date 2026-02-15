@@ -1320,21 +1320,11 @@ void MultibandDisplay::mouseDown ( const juce::MouseEvent& e )
         return;
     }
 
-    // Left-click: toggle selection (click same band to deselect)
+    // Left-click: select band (no toggle — panel only closes via close button or delete)
     int band = bandAtX ( pos.x );
 
     if ( band >= 0 )
     {
-        if ( band == selectedBand )
-        {
-            selectedBand = -1;
-
-            if ( onBandDeselected )
-                onBandDeselected();
-
-            return;
-        }
-
         selectedBand = band;
 
         if ( onBandSelected )

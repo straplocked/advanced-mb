@@ -18,15 +18,15 @@ void EnvelopeFollower::reset()
     currentGR = 0.0f;
 }
 
-void EnvelopeFollower::setAttackPercent(float pct)
+void EnvelopeFollower::setAttackMs(float ms)
 {
-    attackPct = std::clamp(pct, 0.0f, 100.0f);
+    attackMs = std::max(ms, 0.001f);
     updateCoefficients();
 }
 
-void EnvelopeFollower::setReleasePercent(float pct)
+void EnvelopeFollower::setReleaseMs(float ms)
 {
-    releasePct = std::clamp(pct, 0.0f, 100.0f);
+    releaseMs = std::max(ms, 0.01f);
     updateCoefficients();
 }
 
@@ -36,48 +36,22 @@ void EnvelopeFollower::setBandFrequency(float freq)
     updateCoefficients();
 }
 
-float EnvelopeFollower::percentToAttackMs(float pct) const
-{
-    // Exponential mapping: 0% -> 0.1ms, 100% -> 200ms
-    // Using formula: ms = minMs * (maxMs/minMs)^(pct/100)
-    constexpr float minMs = 0.1f;
-    constexpr float maxMs = 200.0f;
-
-    float ms = minMs * std::pow(maxMs / minMs, pct / 100.0f);
-
-    // Frequency scaling: lower frequencies get longer attack times
-    // Multiply by sqrt(1000 / bandFreq) so low bands are slower
-    float freqScale = std::sqrt(1000.0f / bandFrequency);
-    return ms * freqScale;
-}
-
-float EnvelopeFollower::percentToReleaseMs(float pct) const
-{
-    // Exponential mapping: 0% -> 5ms, 100% -> 2000ms
-    constexpr float minMs = 5.0f;
-    constexpr float maxMs = 2000.0f;
-
-    float ms = minMs * std::pow(maxMs / minMs, pct / 100.0f);
-
-    // Same frequency scaling as attack
-    float freqScale = std::sqrt(1000.0f / bandFrequency);
-    return ms * freqScale;
-}
-
 void EnvelopeFollower::updateCoefficients()
 {
     if (currentSampleRate <= 0.0)
         return;
 
-    float attackMs = percentToAttackMs(attackPct);
-    float releaseMs = percentToReleaseMs(releasePct);
+    // Apply frequency scaling: lower frequencies get longer times
+    float freqScale = std::sqrt(1000.0f / bandFrequency);
+
+    float scaledAttackMs  = attackMs  * freqScale;
+    float scaledReleaseMs = releaseMs * freqScale;
 
     // One-pole smoothing coefficient: coeff = exp(-1 / (timeInSeconds * sampleRate))
-    // When timeMs is very small, clamp to avoid instability
-    float attackTimeSec = std::max(attackMs * 0.001f, 1.0e-6f);
-    float releaseTimeSec = std::max(releaseMs * 0.001f, 1.0e-6f);
+    float attackTimeSec  = std::max(scaledAttackMs  * 0.001f, 1.0e-6f);
+    float releaseTimeSec = std::max(scaledReleaseMs * 0.001f, 1.0e-6f);
 
-    attackCoeff = std::exp(-1.0f / (static_cast<float>(currentSampleRate) * attackTimeSec));
+    attackCoeff  = std::exp(-1.0f / (static_cast<float>(currentSampleRate) * attackTimeSec));
     releaseCoeff = std::exp(-1.0f / (static_cast<float>(currentSampleRate) * releaseTimeSec));
 }
 

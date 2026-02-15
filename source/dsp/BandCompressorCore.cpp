@@ -37,12 +37,12 @@ void BandCompressorCore::updateParameters(const BandCompressorParameters& params
     gainComputer.setParameters(params.threshold, params.ratio, params.knee, params.range);
     gainComputer.setExpandMode(params.expandMode);
 
-    envelopeL.setAttackPercent(params.attackPct);
-    envelopeL.setReleasePercent(params.releasePct);
+    envelopeL.setAttackMs(params.attackMs);
+    envelopeL.setReleaseMs(params.releaseMs);
     envelopeL.setBandFrequency(params.bandFrequency);
 
-    envelopeR.setAttackPercent(params.attackPct);
-    envelopeR.setReleasePercent(params.releasePct);
+    envelopeR.setAttackMs(params.attackMs);
+    envelopeR.setReleaseMs(params.releaseMs);
     envelopeR.setBandFrequency(params.bandFrequency);
 }
 
