@@ -164,6 +164,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParameterLayout::createLayou
         params.push_back(std::make_unique<juce::AudioParameterBool>(
             ParameterIDs::bandParam(i, ParameterIDs::Band::audition),
             prefix + "Audition", false));
+
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            ParameterIDs::bandParam(i, ParameterIDs::Band::autoGain),
+            prefix + "Auto Gain", false));
     }
 
     return { params.begin(), params.end() };

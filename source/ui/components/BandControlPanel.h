@@ -79,6 +79,7 @@ private:
     juce::TextButton enableButton   { "ON" };
     juce::TextButton modeButton     { "COMP" };
     juce::TextButton auditionButton { "SOLO" };
+    juce::TextButton autoGainButton { "AUTO" };
     juce::TextButton deleteButton   { "DELETE" };
     juce::TextButton closeButton    { "X" };
     juce::Label      bandLabel;
@@ -98,6 +99,7 @@ private:
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> enableAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> auditionAttach;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> autoGainAttach;
 
     // Band colour look-up table ------------------------------------------------
     static inline const juce::Colour bandColours[Constants::kMaxBands] =

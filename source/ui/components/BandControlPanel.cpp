@@ -54,10 +54,12 @@ BandControlPanel::BandControlPanel ( juce::AudioProcessorValueTreeState& vts )
 
     enableButton.setClickingTogglesState ( true );
     auditionButton.setClickingTogglesState ( true );
+    autoGainButton.setClickingTogglesState ( true );
 
     setupButton ( enableButton );
     setupButton ( modeButton );
     setupButton ( auditionButton );
+    setupButton ( autoGainButton );
     setupButton ( closeButton );
 
     // Delete button with distinct red-tinted colour
@@ -225,6 +227,7 @@ void BandControlPanel::rebuildAttachments()
     stereoLinkAttach.reset();
     enableAttach.reset();
     auditionAttach.reset();
+    autoGainAttach.reset();
 
     if ( selectedBand < 0 )
         return;
@@ -252,6 +255,9 @@ void BandControlPanel::rebuildAttachments()
 
     auditionAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         apvts, ParameterIDs::bandParam ( b, ParameterIDs::Band::audition ), auditionButton );
+
+    autoGainAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        apvts, ParameterIDs::bandParam ( b, ParameterIDs::Band::autoGain ), autoGainButton );
 }
 
 //==============================================================================
@@ -347,6 +353,8 @@ void BandControlPanel::resized()
     enableButton.setBounds ( header.removeFromRight ( 36 ) );
     header.removeFromRight ( 4 );
     modeButton.setBounds ( header.removeFromRight ( 60 ) );
+    header.removeFromRight ( 4 );
+    autoGainButton.setBounds ( header.removeFromRight ( 44 ) );
 
     // === Main knob row: 5 rotary knobs ===
     bounds.removeFromTop ( 2 );

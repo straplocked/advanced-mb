@@ -32,10 +32,14 @@ void BandCompressorCore::updateParameters(const BandCompressorParameters& params
 {
     enabled = params.enabled;
     stereoLink = params.stereoLink;
-    outputGainLinear = MathUtils::dbToLinear(params.outputGain);
 
     gainComputer.setParameters(params.threshold, params.ratio, params.knee, params.range);
     gainComputer.setExpandMode(params.expandMode);
+
+    float totalOutputDB = params.outputGain;
+    if (params.autoGain && !params.expandMode)
+        totalOutputDB += gainComputer.computeAutoMakeupGain();
+    outputGainLinear = MathUtils::dbToLinear(totalOutputDB);
 
     envelopeL.setAttackMs(params.attackMs);
     envelopeL.setReleaseMs(params.releaseMs);

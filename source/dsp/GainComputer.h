@@ -33,6 +33,13 @@ public:
         return CompressorMath::computeGainReduction(inputDB, threshold, ratio, knee, range);
     }
 
+    float computeAutoMakeupGain() const
+    {
+        if (ratio <= 1.0f)
+            return 0.0f;
+        return -threshold * (1.0f - 1.0f / ratio);
+    }
+
     float getThreshold() const { return threshold; }
 
 private:

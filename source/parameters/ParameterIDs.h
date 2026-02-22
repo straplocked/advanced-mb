@@ -42,6 +42,7 @@ namespace ParameterIDs
         const juce::String scFreqHi   = "sc_freq_hi";
         const juce::String scExternal = "sc_external";
         const juce::String audition   = "audition";
+        const juce::String autoGain  = "auto_gain";
     }
 
     // Per-crossover parameter suffixes

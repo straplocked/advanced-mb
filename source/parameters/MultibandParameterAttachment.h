@@ -60,6 +60,7 @@ public:
             bandSCFreqHi[i] = apvts.getRawParameterValue(ParameterIDs::bandParam(i, ParameterIDs::Band::scFreqHi));
             bandSCExternal[i] = apvts.getRawParameterValue(ParameterIDs::bandParam(i, ParameterIDs::Band::scExternal));
             bandAudition[i] = apvts.getRawParameterValue(ParameterIDs::bandParam(i, ParameterIDs::Band::audition));
+            bandAutoGain[i] = apvts.getRawParameterValue(ParameterIDs::bandParam(i, ParameterIDs::Band::autoGain));
         }
     }
 
@@ -115,6 +116,7 @@ public:
             p.bands[i].knee = bandKnee[i]->load();
             p.bands[i].lookaheadMs = bandLookahead[i]->load();
             p.bands[i].stereoLink = bandStereoLink[i]->load();
+            p.bands[i].autoGain = bandAutoGain[i]->load() > 0.5f;
         }
 
         return p;
@@ -158,4 +160,5 @@ private:
     std::array<std::atomic<float>*, Constants::kMaxBands> bandSCFreqHi = {};
     std::array<std::atomic<float>*, Constants::kMaxBands> bandSCExternal = {};
     std::array<std::atomic<float>*, Constants::kMaxBands> bandAudition = {};
+    std::array<std::atomic<float>*, Constants::kMaxBands> bandAutoGain = {};
 };

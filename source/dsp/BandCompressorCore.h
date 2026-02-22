@@ -24,6 +24,7 @@ struct BandCompressorParameters
     float bandFrequency = 1000.0f; // center freq for envelope scaling
     bool expandMode = false;
     bool enabled = true;
+    bool autoGain = false;
 };
 
 class BandCompressorCore
