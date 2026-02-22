@@ -31,6 +31,8 @@ class LevelMeterComponent : public juce::Component,
                             private juce::Timer
 {
 public:
+    enum class MeterMode { Level, GainReduction };
+
     LevelMeterComponent();
     ~LevelMeterComponent() override;
 
@@ -42,6 +44,9 @@ public:
     /** Optional label drawn above the meter (e.g. "In", "Out"). */
     void setLabel ( const juce::String& label ) { meterLabel = label; }
 
+    /** Set meter mode: Level (normal) or GainReduction (inverted, red). */
+    void setMeterMode ( MeterMode mode ) { meterMode = mode; }
+
 private:
     void timerCallback() override;
 
@@ -51,6 +56,9 @@ private:
     // Minimum / Maximum dB for the meter range
     static constexpr float kMinDB = -60.0f;
     static constexpr float kMaxDB = 6.0f;
+
+    // GR meter range (0 dB at top, -30 dB at bottom)
+    static constexpr float kGRMinDB = -30.0f;
 
     // Peak hold decay (dB per timer tick)
     static constexpr float kPeakDecayRate = 0.5f;
@@ -75,6 +83,7 @@ private:
     float targetRmsR  = kMinDB;
 
     juce::String meterLabel;
+    MeterMode meterMode = MeterMode::Level;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR ( LevelMeterComponent )
 };

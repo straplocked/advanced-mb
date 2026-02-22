@@ -28,7 +28,15 @@ AdvancedMBEditor::AdvancedMBEditor ( AdvancedMBProcessor& p )
     addAndMakeVisible ( headerToolbar );
     addAndMakeVisible ( multibandDisplay );
     addAndMakeVisible ( bottomControlStrip );
-    addAndMakeVisible ( levelMeter );
+
+    inputMeter.setLabel ( "In" );
+    outputMeter.setLabel ( "Out" );
+    grMeter.setLabel ( "GR" );
+    grMeter.setMeterMode ( LevelMeterComponent::MeterMode::GainReduction );
+
+    addAndMakeVisible ( inputMeter );
+    addAndMakeVisible ( outputMeter );
+    addAndMakeVisible ( grMeter );
 
     // BandControlPanel is a floating overlay (child, not always visible)
     addChildComponent ( bandControlPanel );
@@ -127,8 +135,16 @@ void AdvancedMBEditor::resized()
     // Bottom control strip across the bottom
     bottomControlStrip.setBounds ( bounds.removeFromBottom ( Constants::kBottomStripHeight ) );
 
-    // Level meter on the right edge of the remaining centre area
-    levelMeter.setBounds ( bounds.removeFromRight ( Constants::kMeterWidth ) );
+    // Metering section on the right edge of the remaining centre area
+    auto meterArea = bounds.removeFromRight ( Constants::kMeterSectionWidth );
+    int meterW = Constants::kSingleMeterWidth;
+    int gap = Constants::kMeterGap;
+
+    inputMeter.setBounds  ( meterArea.removeFromLeft ( meterW ) );
+    meterArea.removeFromLeft ( gap );
+    outputMeter.setBounds ( meterArea.removeFromLeft ( meterW ) );
+    meterArea.removeFromLeft ( gap );
+    grMeter.setBounds     ( meterArea.removeFromLeft ( meterW ) );
 
     // Multiband display always fills the full remaining space (no docking)
     multibandDisplay.setBounds ( bounds );
@@ -219,10 +235,14 @@ void AdvancedMBEditor::timerCallback()
     if ( meterData.getBuffer().swapRead() )
     {
         const auto& frame = meterData.getBuffer().getReadPointer()[0];
-        levelMeter.setLevels ( frame.outputL, frame.outputR,
-                               frame.outputL, frame.outputR );
+
+        inputMeter.setLevels ( frame.inputL, frame.inputR,
+                               frame.inputL, frame.inputR );
+        outputMeter.setLevels ( frame.outputL, frame.outputR,
+                                frame.outputL, frame.outputR );
+        grMeter.setLevels ( frame.globalGR, frame.globalGR,
+                            frame.globalGR, frame.globalGR );
     }
 
     multibandDisplay.repaint();
-    levelMeter.repaint();
 }

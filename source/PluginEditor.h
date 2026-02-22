@@ -45,7 +45,9 @@ private:
     MultibandDisplay multibandDisplay;
     BandControlPanel bandControlPanel;
     BottomControlStrip bottomControlStrip;
-    LevelMeterComponent levelMeter;
+    LevelMeterComponent inputMeter;
+    LevelMeterComponent outputMeter;
+    LevelMeterComponent grMeter;
     PresetBrowserPanel presetBrowser;
     HelpOverlay helpOverlay;
 

@@ -93,53 +93,71 @@ void LevelMeterComponent::paint ( juce::Graphics& g )
     g.setColour ( ColourPalette::curveArea );
     g.fillRoundedRectangle ( bounds, 2.0f );
 
-    // ---------- Peak bar rendering ----------
-    auto drawPeakBar = [&] ( float x, float w, float dB )
-    {
-        float meterY = levelToY ( dB, h );
-
-        // Gradient: green (bottom) -> yellow (mid) -> red (top)
-        juce::ColourGradient gradient ( ColourPalette::meterGreen, x, meterTop + h,
-                                        ColourPalette::meterRed, x, meterTop, false );
-        gradient.addColour ( 0.6, ColourPalette::meterYellow );
-        g.setGradientFill ( gradient );
-        g.fillRect ( x, meterTop + meterY, w, h - meterY );
-    };
-
     float leftX  = bounds.getX();
     float rightX = bounds.getX() + meterWidth + barGap;
 
-    drawPeakBar ( leftX,  meterWidth, peakLevelL );
-    drawPeakBar ( rightX, meterWidth, peakLevelR );
-
-    // ---------- RMS overlay (narrower, semi-transparent) ----------
-    auto drawRmsBar = [&] ( float x, float w, float dB )
+    if ( meterMode == MeterMode::GainReduction )
     {
-        float rmsInset = w * 0.2f;
-        float rmsW = w - rmsInset * 2.0f;
-        float rmsX = x + rmsInset;
-        float meterY = levelToY ( dB, h );
-
-        g.setColour ( juce::Colours::white.withAlpha ( 0.15f ) );
-        g.fillRect ( rmsX, meterTop + meterY, rmsW, h - meterY );
-    };
-
-    drawRmsBar ( leftX,  meterWidth, rmsLevelL );
-    drawRmsBar ( rightX, meterWidth, rmsLevelR );
-
-    // ---------- Peak hold indicators ----------
-    auto drawPeakHold = [&] ( float x, float w, float peak )
-    {
-        if ( peak > kMinDB + 1.0f )
+        // ---------- GR bar rendering (grows downward from top) ----------
+        auto drawGRBar = [&] ( float x, float w, float dB )
         {
-            float peakY = levelToY ( peak, h );
-            g.setColour ( ColourPalette::textBright );
-            g.fillRect ( x, meterTop + peakY, w, 1.0f );
-        }
-    };
+            // dB is negative (e.g. -12). Normalize: 0 dB → 0 fill, kGRMinDB → full fill.
+            float normalized = juce::jlimit ( 0.0f, 1.0f, dB / kGRMinDB );
+            float barH = h * normalized;
+            g.setColour ( ColourPalette::gainReduction );
+            g.fillRect ( x, meterTop, w, barH );
+        };
 
-    drawPeakHold ( leftX,  meterWidth, peakHoldL );
-    drawPeakHold ( rightX, meterWidth, peakHoldR );
+        drawGRBar ( leftX,  meterWidth, peakLevelL );
+        drawGRBar ( rightX, meterWidth, peakLevelR );
+    }
+    else
+    {
+        // ---------- Peak bar rendering ----------
+        auto drawPeakBar = [&] ( float x, float w, float dB )
+        {
+            float meterY = levelToY ( dB, h );
+
+            // Gradient: green (bottom) -> yellow (mid) -> red (top)
+            juce::ColourGradient gradient ( ColourPalette::meterGreen, x, meterTop + h,
+                                            ColourPalette::meterRed, x, meterTop, false );
+            gradient.addColour ( 0.6, ColourPalette::meterYellow );
+            g.setGradientFill ( gradient );
+            g.fillRect ( x, meterTop + meterY, w, h - meterY );
+        };
+
+        drawPeakBar ( leftX,  meterWidth, peakLevelL );
+        drawPeakBar ( rightX, meterWidth, peakLevelR );
+
+        // ---------- RMS overlay (narrower, semi-transparent) ----------
+        auto drawRmsBar = [&] ( float x, float w, float dB )
+        {
+            float rmsInset = w * 0.2f;
+            float rmsW = w - rmsInset * 2.0f;
+            float rmsX = x + rmsInset;
+            float meterY = levelToY ( dB, h );
+
+            g.setColour ( juce::Colours::white.withAlpha ( 0.15f ) );
+            g.fillRect ( rmsX, meterTop + meterY, rmsW, h - meterY );
+        };
+
+        drawRmsBar ( leftX,  meterWidth, rmsLevelL );
+        drawRmsBar ( rightX, meterWidth, rmsLevelR );
+
+        // ---------- Peak hold indicators ----------
+        auto drawPeakHold = [&] ( float x, float w, float peak )
+        {
+            if ( peak > kMinDB + 1.0f )
+            {
+                float peakY = levelToY ( peak, h );
+                g.setColour ( ColourPalette::textBright );
+                g.fillRect ( x, meterTop + peakY, w, 1.0f );
+            }
+        };
+
+        drawPeakHold ( leftX,  meterWidth, peakHoldL );
+        drawPeakHold ( rightX, meterWidth, peakHoldR );
+    }
 
     // Border
     g.setColour ( ColourPalette::gridLine );

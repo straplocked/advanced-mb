@@ -104,7 +104,13 @@ namespace Constants
     // UI layout
     constexpr int kHeaderHeight = 36;
     constexpr int kBottomStripHeight = 28;
-    constexpr int kMeterWidth = 20;
+
+    // Metering section
+    constexpr int kSingleMeterWidth = 20;                                       // one stereo meter
+    constexpr int kMeterLabelHeight = 14;                                       // label below each meter
+    constexpr int kMeterGap = 3;                                                // gap between meters
+    constexpr int kMeterSectionWidth = kSingleMeterWidth * 3 + kMeterGap * 2;  // 66px total
+    constexpr int kMeterWidth = kMeterSectionWidth;                             // backward compat alias
 
     // Floating popup panel
     constexpr int kPopupPanelWidth           = 660;
