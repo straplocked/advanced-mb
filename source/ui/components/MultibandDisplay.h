@@ -70,6 +70,7 @@ private:
     void drawGrid ( juce::Graphics& g );
     void drawSpectrum ( juce::Graphics& g );
     void drawBandRegions ( juce::Graphics& g );
+    void drawGainReduction ( juce::Graphics& g );
     void drawRangeRegions ( juce::Graphics& g );
     void drawOutputCurve ( juce::Graphics& g );
     void drawCrossovers ( juce::Graphics& g );
@@ -160,6 +161,11 @@ private:
         ColourPalette::band1Fill, ColourPalette::band2Fill, ColourPalette::band3Fill,
         ColourPalette::band4Fill, ColourPalette::band5Fill, ColourPalette::band6Fill
     };
+
+    // Per-band smoothed GR values for visualization (updated per timer tick)
+    std::array<float, Constants::kMaxBands> smoothedGR = {};
+    static constexpr float kGRSmoothingAttack = 0.4f;   // fast attack (respond quickly to compression)
+    static constexpr float kGRSmoothingRelease = 0.08f;  // slow release (smooth visual decay)
 
     // Cached spectrum path data (updated per timer tick) ------------------
     juce::Path preSpectrumPath;

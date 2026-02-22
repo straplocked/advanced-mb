@@ -67,6 +67,24 @@ float MultibandDisplay::yToDb ( float y ) const
 
 void MultibandDisplay::timerCallback()
 {
+    // Smooth per-band GR values for visualization
+    if ( processor != nullptr && bandManager != nullptr )
+    {
+        const auto& bands = bandManager->getActiveBands();
+
+        for ( int b = 0; b < static_cast<int> ( bands.size() ); ++b )
+        {
+            int slot = bands[static_cast<size_t> ( b )].slotIndex;
+            float rawGR = processor->getBandGainReduction ( slot );
+
+            // Asymmetric smoothing: fast attack, slow release
+            float alpha = ( rawGR < smoothedGR[static_cast<size_t> ( slot )] )
+                            ? kGRSmoothingAttack : kGRSmoothingRelease;
+            smoothedGR[static_cast<size_t> ( slot )] +=
+                ( rawGR - smoothedGR[static_cast<size_t> ( slot )] ) * alpha;
+        }
+    }
+
     updateDisplayRange();
     repaint();
 }
@@ -81,6 +99,7 @@ void MultibandDisplay::paint ( juce::Graphics& g )
     drawGrid ( g );
     drawSpectrum ( g );
     drawBandRegions ( g );
+    drawGainReduction ( g );
     drawRangeRegions ( g );
     drawOutputCurve ( g );
     drawCrossovers ( g );
@@ -239,6 +258,96 @@ void MultibandDisplay::drawBandRegions ( juce::Graphics& g )
 
         g.setColour ( fill );
         g.fillRect ( x0, 0.0f, x1 - x0, h );
+    }
+}
+
+//==============================================================================
+// Layer 4b - Per-band gain reduction visualization
+//==============================================================================
+
+void MultibandDisplay::drawGainReduction ( juce::Graphics& g )
+{
+    if ( processor == nullptr || bandManager == nullptr )
+        return;
+
+    auto params = processor->getParameterAttachment().getCurrentParameters();
+    const int numBands = bandManager->getNumActiveBands();
+    const auto& bands = bandManager->getActiveBands();
+
+    if ( numBands < 1 )
+        return;
+
+    const float zeroY = dbToY ( 0.0f );
+    const int numPoints = 64;
+
+    for ( int b = 0; b < numBands; ++b )
+    {
+        int slot = bands[static_cast<size_t> ( b )].slotIndex;
+
+        if ( ! params.bands[slot].enabled )
+            continue;
+
+        float grDB = smoothedGR[static_cast<size_t> ( slot )];
+
+        // Skip negligible GR (less than 0.1 dB)
+        if ( grDB > -0.1f )
+            continue;
+
+        float x0 = frequencyToX ( bands[static_cast<size_t> ( b )].leftFreqHz );
+        float x1 = frequencyToX ( bands[static_cast<size_t> ( b )].rightFreqHz );
+
+        juce::Colour bandCol = bandColours[slot % Constants::kMaxBands];
+
+        // Build a filled path from 0 dB down to the GR curve.
+        // The GR curve uses the same sin² bell shape as the output curve.
+        juce::Path grPath;
+
+        // Forward pass: 0 dB line (left → right)
+        grPath.startNewSubPath ( x0, zeroY );
+        grPath.lineTo ( x1, zeroY );
+
+        // Reverse pass: GR curve (right → left)
+        for ( int i = numPoints; i >= 0; --i )
+        {
+            float t = static_cast<float> ( i ) / static_cast<float> ( numPoints );
+            float x = x0 + t * ( x1 - x0 );
+            float sinVal = std::sin ( juce::MathConstants<float>::pi * t );
+            float shape = sinVal * sinVal;
+            float dB = grDB * shape;   // grDB is negative, so curve extends downward
+            float y = dbToY ( dB );
+            grPath.lineTo ( x, y );
+        }
+
+        grPath.closeSubPath();
+
+        // Fill with band-tinted amber/orange — semi-transparent
+        // Blend band colour toward orange for a warm GR indicator
+        juce::Colour grColour = bandCol.interpolatedWith (
+            ColourPalette::gainReduction, 0.5f );
+        g.setColour ( grColour.withAlpha ( 0.25f ) );
+        g.fillPath ( grPath );
+
+        // Stroke the GR curve bottom edge for definition
+        juce::Path grEdge;
+
+        for ( int i = 0; i <= numPoints; ++i )
+        {
+            float t = static_cast<float> ( i ) / static_cast<float> ( numPoints );
+            float x = x0 + t * ( x1 - x0 );
+            float sinVal = std::sin ( juce::MathConstants<float>::pi * t );
+            float shape = sinVal * sinVal;
+            float dB = grDB * shape;
+            float y = dbToY ( dB );
+
+            if ( i == 0 )
+                grEdge.startNewSubPath ( x, y );
+            else
+                grEdge.lineTo ( x, y );
+        }
+
+        g.setColour ( grColour.withAlpha ( 0.6f ) );
+        g.strokePath ( grEdge,
+                       juce::PathStrokeType ( 1.5f, juce::PathStrokeType::curved ) );
     }
 }
 
@@ -1142,10 +1251,11 @@ void MultibandDisplay::updateDisplayRange()
 
         float range = params.bands[slot].range;
         float outputGain = params.bands[slot].outputGain;
+        float grDB = smoothedGR[static_cast<size_t> ( slot )];
 
         float rangeBoundary = outputGain + range;
 
-        float lowestDB = std::min ( outputGain, rangeBoundary ) - 6.0f;
+        float lowestDB = std::min ( std::min ( outputGain, rangeBoundary ), grDB ) - 6.0f;
         float highestDB = std::max ( outputGain, rangeBoundary ) + 6.0f;
 
         neededMin = std::min ( neededMin, lowestDB );
