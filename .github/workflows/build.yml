@@ -2,9 +2,10 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
   build-macos:
@@ -37,7 +38,7 @@ jobs:
           submodules: recursive
 
       - name: Configure
-        run: cmake -B build -G "Visual Studio 17 2022"
+        run: cmake -B build
 
       - name: Build
         run: cmake --build build --config Release
