@@ -25,6 +25,13 @@ namespace Constants
     constexpr float kMinFrequency = 20.0f;
     constexpr float kMaxFrequency = 20000.0f;
 
+    // Spectrum analyser magnitude range, in dBFS. This is deliberately separate
+    // from the display's gain axis (which spans roughly +/-36 dB and is
+    // zoomable): spectrum magnitudes are full-scale levels, not band gains.
+    // Matches advanced-eq so the family reads consistently.
+    constexpr float kAnalyzerMinDB = -100.0f;
+    constexpr float kAnalyzerMaxDB = 6.0f;
+
     // Default crossover frequencies (Hz)
     constexpr float kDefaultCrossover1 = 100.0f;
     constexpr float kDefaultCrossover2 = 500.0f;

@@ -56,6 +56,12 @@ float MultibandDisplay::dbToY ( float dB ) const
     return MathUtils::gainToY ( dB, static_cast<float> ( getHeight() ), minDB, maxDB );
 }
 
+float MultibandDisplay::spectrumDbToY ( float dBFS ) const
+{
+    return MathUtils::gainToY ( dBFS, static_cast<float> ( getHeight() ),
+                                Constants::kAnalyzerMinDB, Constants::kAnalyzerMaxDB );
+}
+
 float MultibandDisplay::yToDb ( float y ) const
 {
     return MathUtils::yToGain ( y, static_cast<float> ( getHeight() ), minDB, maxDB );
@@ -173,9 +179,13 @@ void MultibandDisplay::drawSpectrum ( juce::Graphics& g )
         return;
 
     // Helper lambda to build a spectrum path from a TripleBuffer
+    // The cached path is reused when no new FFT frame has arrived, so the
+    // analyser holds its last drawn state instead of flickering to silence.
     auto buildPath = [&] ( auto& fftProc, juce::Path& path )
     {
-        fftProc.getMagnitudeBuffer().swapRead();
+        if ( ! fftProc.getMagnitudeBuffer().swapRead() && ! path.isEmpty() )
+            return;
+
         const float* data = fftProc.getMagnitudeBuffer().getReadPointer();
 
         path.clear();
@@ -189,12 +199,12 @@ void MultibandDisplay::drawSpectrum ( juce::Graphics& g )
             if ( freq < Constants::kMinFrequency || freq > Constants::kMaxFrequency )
                 continue;
 
-            float mag = data[i];
-            float dB  = ( mag > 1e-10f ) ? ( 20.0f * std::log10 ( mag ) ) : minDB;
-            dB = juce::jlimit ( minDB, maxDB, dB );
+            // FFTProcessor already stores dBFS, so do not convert again.
+            float dB = juce::jlimit ( Constants::kAnalyzerMinDB,
+                                      Constants::kAnalyzerMaxDB, data[i] );
 
             float x = frequencyToX ( freq );
-            float y = dbToY ( dB );
+            float y = spectrumDbToY ( dB );
 
             if ( ! started )
             {

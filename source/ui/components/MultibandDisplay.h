@@ -136,6 +136,14 @@ private:
     float tooltipX = 0.0f;
     float tooltipY = 0.0f;
 
+    /** Maps a spectrum magnitude in dBFS to a y coordinate.
+     *
+     *  Spectrum data must not use dbToY(): that maps the band-gain axis, which
+     *  spans only +/-36 dB and is zoomable, so full-scale magnitudes clamp to
+     *  the bottom edge and the curve rescales when the user zooms the gain axis.
+     */
+    float spectrumDbToY ( float dBFS ) const;
+
     float minDB = -36.0f;
     float maxDB = 36.0f;
     float targetMinDB = -36.0f;

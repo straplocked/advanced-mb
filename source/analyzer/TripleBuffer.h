@@ -14,10 +14,10 @@ class TripleBuffer
 {
 public:
     TripleBuffer() = default;
-    void resize(size_t size)
+    void resize(size_t size, T initialValue = T{})
     {
         for (auto& buf : buffers)
-            buf.assign(size, T{});
+            buf.assign(size, initialValue);
     }
     size_t getSize() const { return buffers[0].size(); }
     T* getWritePointer()
