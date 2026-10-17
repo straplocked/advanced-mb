@@ -1,8 +1,13 @@
 # Advanced MB
 
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![Build](https://github.com/straplocked/advanced-mb/actions/workflows/build.yml/badge.svg)](https://github.com/straplocked/advanced-mb/actions/workflows/build.yml)
+
 An open-source multiband compressor audio plugin inspired by FabFilter Pro-MB. Built with JUCE 7 and C++20.
 
 Advanced MB is part of a family of sibling plugins: **advanced-eq**, **advanced-compressor**, and **advanced-limiter**.
+
+![Advanced MB](docs/images/plugin-screenshot.png)
 
 ## Features
 
