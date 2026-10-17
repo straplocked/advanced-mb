@@ -16,7 +16,9 @@ void FFTProcessor::prepare(double sampleRate, int)
     ringBuffer.assign((size_t)fftSize, 0.0f);
     ringWritePos = 0;
     fftData.assign((size_t)fftSize * 2, 0.0f);
-    magnitudeBuffer.resize((size_t)getNumBins());
+    // Seed at the analyser floor: an unwritten buffer must read as silence,
+    // not as 0 dBFS (which would paint a full-scale line across the display).
+    magnitudeBuffer.resize((size_t)getNumBins(), Constants::kAnalyzerMinDB);
 }
 
 void FFTProcessor::reset()
@@ -61,7 +63,7 @@ void FFTProcessor::performFFT()
         float mag = fftData[(size_t)bin] / fftSizeF;
         if (bin > 0 && bin < numBins - 1) mag *= 2.0f;
         float dB = 20.0f * std::log10(std::max(mag, 1e-10f));
-        dest[bin] = std::max(dB, -100.0f);
+        dest[bin] = std::max(dB, Constants::kAnalyzerMinDB);
     }
     magnitudeBuffer.finishWrite();
 }
