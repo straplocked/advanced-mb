@@ -56,6 +56,12 @@ float MultibandDisplay::dbToY ( float dB ) const
     return MathUtils::gainToY ( dB, static_cast<float> ( getHeight() ), minDB, maxDB );
 }
 
+float MultibandDisplay::spectrumDbToY ( float dBFS ) const
+{
+    return MathUtils::gainToY ( dBFS, static_cast<float> ( getHeight() ),
+                                Constants::kAnalyzerMinDB, Constants::kAnalyzerMaxDB );
+}
+
 float MultibandDisplay::yToDb ( float y ) const
 {
     return MathUtils::yToGain ( y, static_cast<float> ( getHeight() ), minDB, maxDB );
@@ -190,11 +196,12 @@ void MultibandDisplay::drawSpectrum ( juce::Graphics& g )
                 continue;
 
             float mag = data[i];
-            float dB  = ( mag > 1e-10f ) ? ( 20.0f * std::log10 ( mag ) ) : minDB;
-            dB = juce::jlimit ( minDB, maxDB, dB );
+            float dB  = ( mag > 1e-10f ) ? ( 20.0f * std::log10 ( mag ) )
+                                         : Constants::kAnalyzerMinDB;
+            dB = juce::jlimit ( Constants::kAnalyzerMinDB, Constants::kAnalyzerMaxDB, dB );
 
             float x = frequencyToX ( freq );
-            float y = dbToY ( dB );
+            float y = spectrumDbToY ( dB );
 
             if ( ! started )
             {
